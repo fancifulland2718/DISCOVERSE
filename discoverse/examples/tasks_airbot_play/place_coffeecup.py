@@ -3,6 +3,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 import os
+import time
 import argparse
 import multiprocessing as mp
 
@@ -28,6 +29,10 @@ class SimNode(AirbotPlayTaskBase):
 
         # 随机 木板位置
         self.object_pose("wood")[:2] += 2.*(np.random.random() - 0.5) * np.array([0.035, 0.02])
+
+        # 随机 桌面纹理
+        self.shuffle_table_texture()
+        self.load_renderer()
 
         # # 随机 eye side 视角
         # camera = self.mj_model.camera("eye_side")

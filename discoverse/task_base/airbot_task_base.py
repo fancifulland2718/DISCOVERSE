@@ -1,6 +1,8 @@
 import os
+import PIL
 import json
 import glfw
+import random
 import shutil
 import mujoco
 import mediapy
@@ -44,6 +46,13 @@ class AirbotPlayTaskBase(AirbotPlayBase):
         self.domain_randomization()
         mujoco.mj_forward(self.mj_model, self.mj_data)
         self.reset_sig = True
+
+    def shuffle_table_texture(self):
+        TEXTURE_1K_PATH = os.getenv("TEXTURE_1K_PATH")
+        if not TEXTURE_1K_PATH is None and os.path.exists(TEXTURE_1K_PATH):
+            self.update_texture("tc_texture", np.array(PIL.Image.open(os.path.join(TEXTURE_1K_PATH, random.choice(os.listdir(TEXTURE_1K_PATH))))))
+        else:
+            print("Warning: TEXTURE_1K_PATH not found")
 
     def domain_randomization(self):
         pass

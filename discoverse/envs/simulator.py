@@ -259,7 +259,7 @@ class SimulatorBase:
 
             self.mj_model.vis.global_.offwidth = max(self.mj_model.vis.global_.offwidth, screen_width)
             self.mj_model.vis.global_.offheight = max(self.mj_model.vis.global_.offheight, screen_height)
-            self.renderer = mujoco.Renderer(self.mj_model, self.config.render_set["height"], self.config.render_set["width"])
+            self.load_renderer()
 
         for i in range(self.mj_model.nbody):
             if len(self.mj_model.body(i).name) and self.mj_model.body(i).dofnum == 6:
@@ -279,6 +279,12 @@ class SimulatorBase:
         self.renderer._rect.height = height
         if self.config.use_gaussian_renderer and self.show_gaussian_img:
             self.gs_renderer.set_camera_resolution(height, width)
+
+    def update_texture(self, texture_name, texture_data):
+        self.mj_model.tex(texture_name).data[...] = texture_data
+    
+    def load_renderer(self):
+        self.renderer = mujoco.Renderer(self.mj_model, self.config.render_set["height"], self.config.render_set["width"])
 
     def render(self):
         self.render_cnt += 1

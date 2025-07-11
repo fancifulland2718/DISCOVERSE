@@ -10,7 +10,7 @@ from discoverse.robots import AirbotPlayIK
 from discoverse import DISCOVERSE_ROOT_DIR
 from discoverse.robots_env.airbot_play_base import AirbotPlayCfg
 from discoverse.utils import get_body_tmat, get_site_tmat, step_func, SimpleStateMachine
-from discoverse.task_base import AirbotPlayTaskBase, recoder_airbot_play, copypy2
+from discoverse.task_base import AirbotPlayTaskBase, recoder_airbot_play, batch_encode_videos, copypy2
 
 class SimNode(AirbotPlayTaskBase):
     def __init__(self, config: AirbotPlayCfg):
@@ -89,7 +89,7 @@ if __name__ == "__main__":
 
     action = np.zeros(7)
     act_lst, obs_lst = [], []
-    process_list = []
+    video_tasks = []
 
     move_speed = 0.75
     sim_node.reset()
@@ -150,9 +150,8 @@ if __name__ == "__main__":
         if stm.state_idx >= stm.max_state_cnt:
             if sim_node.check_success():
                 save_path = os.path.join(save_dir, "{:03d}".format(data_idx))
-                process = mp.Process(target=recoder_airbot_play, args=(save_path, act_lst, obs_lst, cfg))
-                process.start()
-                process_list.append(process)
+                tasks = recoder_airbot_play(save_path, act_lst, obs_lst, cfg)
+                video_tasks.extend(tasks)
 
                 data_idx += 1
                 print("\r{:4}/{:4} ".format(data_idx, data_set_size), end="")
@@ -163,5 +162,6 @@ if __name__ == "__main__":
 
             sim_node.reset()
 
-    for p in process_list:
-        p.join()
+    if video_tasks:
+        max_workers = min(4, max(2, os.cpu_count() // 2))
+        batch_encode_videos(video_tasks, max_workers=max_workers)

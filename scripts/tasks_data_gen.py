@@ -153,13 +153,26 @@ if __name__ == "__main__":
     task_name = args.task_name
     track_num = args.track_num
     nw = args.nw
-        # Get number of logical processors
+    
+    # Get number of logical processors
     cpu_count = os.cpu_count()
-    if nw > cpu_count - 2:
-        logger.warning(f"指定的工作进程数 ({nw}) 过多（系统逻辑处理器数量为 {cpu_count})")
-        logger.warning(f"自动将工作进程数调整为 {cpu_count - 2}")
-        nw = cpu_count - 2
+    memory_gb = psutil.virtual_memory().total / (1024**3)
+    memory_per_worker = memory_gb / nw
 
+    # 根据内存情况给出建议
+    logger.info(f"系统信息: {cpu_count} 核心CPU, {memory_gb:.1f}GB 内存")
+    logger.info(f"使用 {nw} 个工作进程，每进程最多可使用约 {memory_per_worker:.1f}GB 内存")
+
+    # 改进的工作进程数建议
+    if nw > cpu_count - 2 or memory_per_worker < 2.0:
+        if memory_per_worker < 2.0:  # 每个工作进程少于2GB内存
+            logger.warning(f"每个工作进程可用内存较少 ({memory_per_worker:.1f}GB)")
+        if nw > cpu_count - 2:
+            logger.warning(f"指定的工作进程数 ({nw}) 可能过多（系统逻辑处理器数量为 {cpu_count})")
+        recommended_nw = min(int(memory_gb / 2), cpu_count - 2)
+        logger.warning(f"建议的工作进程数: {recommended_nw}")
+        logger.warning(f"继续使用用户指定的 {nw} 个工作进程...")
+       
     use_gs = args.use_gs
     memory_threshold = args.memory_threshold
     
@@ -189,14 +202,19 @@ if __name__ == "__main__":
         monitor_thread.start()
         
         # 等待所有任务完成
-        for future in futures:
+        completed_count = 0
+        for i, future in enumerate(futures):
             try:
                 result = future.result()
                 if result:
                     thread_id, pid, return_code = result
-                    logger.info(f"线程 {thread_id} (PID: {pid}) 完成，返回码: {return_code}")
+                    completed_count += 1
+                    logger.info(f"工作进程 {i+1}/{nw} 完成 (线程ID: {thread_id}, PID: {pid}, 返回码: {return_code})")
+                    logger.info(f"总进度: {completed_count}/{nw}")
             except Exception as e:
-                logger.error(f"任务执行失败: {e}")
+                logger.error(f"工作进程 {i+1} 执行失败: {e}")
         
         # 等待监控线程结束
         monitor_thread.join(timeout=1)
+
+    logger.info("所有数据收集任务已完成！")

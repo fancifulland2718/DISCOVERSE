@@ -10,26 +10,41 @@ from discoverse.robots import AirbotPlayIK
 from discoverse import DISCOVERSE_ROOT_DIR
 from discoverse.robots_env.airbot_play_base import AirbotPlayCfg
 from discoverse.utils import get_body_tmat, get_site_tmat, step_func, SimpleStateMachine
-from discoverse.task_base import AirbotPlayTaskBase, recoder_airbot_play, copypy2
+from discoverse.task_base import AirbotPlayTaskBase, recoder_airbot_play, batch_encode_videos, copypy2
 
 from discoverse.task_base.airbot_task_base import recoder_airbot_play
 
 class SimNode(AirbotPlayTaskBase):
 
     def domain_randomization(self):
-        # 杯子
+        # 随机 杯子位置
         self.object_pose("coffeecup_white")[:2] += 2.*(np.random.random(2) - 0.5) * np.array([0.05, 0.03])
 
         wood_base_x_bias = 2.*(np.random.random() - 0.5) * 0.05
-        # 盘子
+        # 随机 盘子位置
         self.object_pose("plate_white")[:2] += 2.*(np.random.random(2) - 0.5) * np.array([0.05, 0.02])
         self.object_pose("plate_white")[0] += wood_base_x_bias
 
-        # 木板
+        # 随机 木板位置
         self.object_pose("wood")[0] += wood_base_x_bias
 
-        # 杯盖
+        # 随机 杯盖位置
         self.object_pose("cup_lid")[:2] += 2.*(np.random.random(2) - 0.5) * np.array([0.05, 0.05])
+
+        # 随机桌子高度
+        self.random_table_height(obj_name_list=["plate_white", "coffeecup_white", "wood", "cup_lid"])
+
+        # 随机 桌面纹理
+        self.random_table_texture()
+
+        # 随机物体材质
+        self.random_material("coffeecup_texture")
+        self.random_material("wood_texture")
+        self.random_material("plate_white_texture")
+        self.random_material("cup_lid_texture")
+
+        # 随机 灯光
+        self.random_light()
 
     def check_success(self):
         tmat_lid = get_body_tmat(self.mj_data, "cup_lid")
@@ -99,7 +114,7 @@ if __name__ == "__main__":
     max_time = 20.0 #s
 
     action = np.zeros(7)
-    process_list = []
+    video_tasks = []
 
     move_speed = 0.75
     sim_node.reset()
@@ -204,9 +219,8 @@ if __name__ == "__main__":
         if stm.state_idx >= stm.max_state_cnt:
             if sim_node.check_success():
                 save_path = os.path.join(save_dir, "{:03d}".format(data_idx))
-                process = mp.Process(target=recoder_airbot_play, args=(save_path, act_lst, obs_lst, cfg))
-                process.start()
-                process_list.append(process)
+                tasks = recoder_airbot_play(save_path, act_lst, obs_lst, cfg)
+                video_tasks.extend(tasks)
 
                 data_idx += 1
                 print("\r{:4}/{:4} ".format(data_idx, data_set_size), end="")
@@ -217,5 +231,6 @@ if __name__ == "__main__":
 
             sim_node.reset()
 
-    for p in process_list:
-        p.join()
+    if video_tasks:
+        max_workers = min(4, max(2, os.cpu_count() // 2))
+        batch_encode_videos(video_tasks, max_workers=max_workers)

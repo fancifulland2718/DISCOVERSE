@@ -17,3 +17,4 @@ data
 discoverse/randomain/models
 policies/dp/logs
 *.npz
+*/textures_1k/*

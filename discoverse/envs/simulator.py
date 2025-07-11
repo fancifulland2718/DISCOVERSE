@@ -224,6 +224,7 @@ class SimulatorBase:
         elif self.mjcf_file.endswith(".mjb"):
             self.mj_model = mujoco.MjModel.from_binary_path(self.mjcf_file)
         self.mj_model.opt.timestep = self.config.timestep
+        self.mj_model.vis.quality.shadowsize = 4096 * 8
         self.mj_data = mujoco.MjData(self.mj_model)
         if self.config.enable_render:
             for i in range(self.mj_model.ncam):

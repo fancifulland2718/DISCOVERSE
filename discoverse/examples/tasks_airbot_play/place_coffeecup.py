@@ -32,7 +32,6 @@ class SimNode(AirbotPlayTaskBase):
 
         # 随机 桌面纹理
         self.shuffle_table_texture()
-        self.load_renderer()
 
         # # 随机 eye side 视角
         # camera = self.mj_model.camera("eye_side")

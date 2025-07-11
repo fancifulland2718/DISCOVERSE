@@ -6,6 +6,7 @@ from abc import abstractmethod
 
 import cv2
 import glfw
+from PIL import Image
 import OpenGL.GL as gl
 
 import mujoco
@@ -259,7 +260,7 @@ class SimulatorBase:
 
             self.mj_model.vis.global_.offwidth = max(self.mj_model.vis.global_.offwidth, screen_width)
             self.mj_model.vis.global_.offheight = max(self.mj_model.vis.global_.offheight, screen_height)
-            self.load_renderer()
+            self.renderer = mujoco.Renderer(self.mj_model, self.config.render_set["height"], self.config.render_set["width"])
 
         for i in range(self.mj_model.nbody):
             if len(self.mj_model.body(i).name) and self.mj_model.body(i).dofnum == 6:
@@ -280,11 +281,58 @@ class SimulatorBase:
         if self.config.use_gaussian_renderer and self.show_gaussian_img:
             self.gs_renderer.set_camera_resolution(height, width)
 
-    def update_texture(self, texture_name, texture_data):
-        self.mj_model.tex(texture_name).data[...] = texture_data
-    
-    def load_renderer(self):
-        self.renderer = mujoco.Renderer(self.mj_model, self.config.render_set["height"], self.config.render_set["width"])
+    def update_texture(self, texture_name, mtl_img_pil):
+        """更新纹理"""
+        if not hasattr(self, 'renderer') or self.renderer is None:
+            print(f"Renderer not initialized, cannot update texture: {texture_name}")
+            return False
+
+        try:
+            tex_id = self.renderer.model.tex(texture_name).id
+        except Exception as e:
+            print(f"Texture '{texture_name}' not found: {e}")
+            return False
+        
+        self.renderer.update_scene(self.mj_data, self.free_camera, self.options)
+        self.renderer.render()
+        
+        tex_bind_id = self.renderer._mjr_context.texture[tex_id]
+        gl.glBindTexture(gl.GL_TEXTURE_2D, tex_bind_id)
+        
+        try:
+            width = gl.glGetTexLevelParameteriv(gl.GL_TEXTURE_2D, 0, gl.GL_TEXTURE_WIDTH)
+            height = gl.glGetTexLevelParameteriv(gl.GL_TEXTURE_2D, 0, gl.GL_TEXTURE_HEIGHT)
+        except Exception as e:
+            print(f"Error getting texture dimensions: {e}")
+            gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
+            return False
+
+        try:
+            if mtl_img_pil.mode != 'RGB':
+                mtl_img_pil = mtl_img_pil.convert('RGB')
+
+            if mtl_img_pil.size != (width, height):
+                mtl_img_pil = mtl_img_pil.resize((width, height), Image.Resampling.LANCZOS)
+            
+            mtl_img = np.array(mtl_img_pil)
+            mtl_img = np.flipud(mtl_img)
+            mtl_img = np.ascontiguousarray(mtl_img, dtype=np.uint8)
+
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_REPEAT)
+
+            gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, width, height, 
+                              gl.GL_RGB, gl.GL_UNSIGNED_BYTE, mtl_img.tobytes())
+            
+        except Exception as e:
+            print(f"Error processing image for texture '{texture_name}': {e}")
+            return False
+        finally:
+            gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
+            
+        return True
 
     def render(self):
         self.render_cnt += 1

@@ -1,5 +1,4 @@
 import os
-import PIL
 import json
 import glfw
 import random
@@ -7,7 +6,9 @@ import shutil
 import mujoco
 import mediapy
 import numpy as np
+from PIL import Image
 from scipy.spatial.transform import Rotation
+from discoverse import DISCOVERSE_ASSETS_DIR
 from discoverse.robots_env.airbot_play_base import AirbotPlayBase
 
 def recoder_airbot_play(save_path, act_lst, obs_lst, cfg):
@@ -48,9 +49,9 @@ class AirbotPlayTaskBase(AirbotPlayBase):
         self.reset_sig = True
 
     def shuffle_table_texture(self):
-        TEXTURE_1K_PATH = os.getenv("TEXTURE_1K_PATH")
+        TEXTURE_1K_PATH = os.getenv("TEXTURE_1K_PATH", os.path.join(DISCOVERSE_ASSETS_DIR, "textures_1k"))
         if not TEXTURE_1K_PATH is None and os.path.exists(TEXTURE_1K_PATH):
-            self.update_texture("tc_texture", np.array(PIL.Image.open(os.path.join(TEXTURE_1K_PATH, random.choice(os.listdir(TEXTURE_1K_PATH))))))
+            self.update_texture("tc_texture", Image.open(os.path.join(TEXTURE_1K_PATH, random.choice(os.listdir(TEXTURE_1K_PATH)))))
         else:
             print("Warning: TEXTURE_1K_PATH not found")
 

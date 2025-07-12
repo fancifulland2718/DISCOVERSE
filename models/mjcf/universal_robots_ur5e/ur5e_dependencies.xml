@@ -54,6 +54,13 @@
     <mesh file="wrist2_1.obj"/>
     <mesh file="wrist2_2.obj"/>
     <mesh file="wrist3.obj"/>
+    <mesh name="WSG50_110" file="WSG50_110.stl"/>
+    <mesh name="GUIDE_WSG50_110" file="GUIDE_WSG50_110.stl"/>
+    <mesh name="WSG-FMF" file="WSG-FMF.stl"/>
   </asset>
+
+  <equality>
+    <joint joint1="base_joint_gripper_left" joint2="base_joint_gripper_right" solimp="0.95 0.99 0.001" solref="0.005 1" polycoef="0 -1 0 0 0"/>
+  </equality>
 
 </mujocoinclude>

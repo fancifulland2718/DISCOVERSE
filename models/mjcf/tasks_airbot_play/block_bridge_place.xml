@@ -1,10 +1,9 @@
 <mujoco model="block_bridge_place">
 
   <include file="../scene.xml"/>
-  <include file="../airbot_play/airbot_play_options.xml"/>
   <include file="../airbot_play/airbot_play_dependencies.xml"/>
 
-  <compiler meshdir="../../meshes/" texturedir="../../meshes/"/>
+  <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/"/>
   <include file="../object/bridge_dependencies.xml"/>
 
   <worldbody>

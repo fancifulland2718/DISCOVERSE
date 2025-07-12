@@ -1,0 +1,30 @@
+<mujoco model="airbot_play">
+
+  <compiler angle="radian" meshdir="../meshes/" texturedir="../meshes/"/>
+
+  <include file="scene/skybox.xml"/>
+  <include file="airbot_play/airbot_play_dependencies.xml"/>
+
+  <worldbody>
+    <body name="airbot_play" pos="0 0 0.78" euler="0 0 0">
+      <include file="airbot_play/airbot_play.xml"/>
+    </body>
+  </worldbody>
+
+  <equality>
+    <joint joint1='endleft' joint2='endright' polycoef='0 -1 0 0 0 '/>
+  </equality>
+
+  <actuator>
+    <include file="airbot_play/airbot_play_control.xml"/>
+  </actuator>
+
+  <sensor>
+    <include file="airbot_play/airbot_play_sensor.xml"/>
+  </sensor>
+
+  <keyframe>
+    <key qpos='0 -1 1.2 1.5708 -1.2 -1.5708 0 0' ctrl='0 -1 1.2 1.5708 -1.2 -1.5708 0'/>
+  </keyframe>
+
+</mujoco>

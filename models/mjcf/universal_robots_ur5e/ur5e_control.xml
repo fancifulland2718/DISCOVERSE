@@ -1,0 +1,8 @@
+<mujocoinclude>
+  <position class="position" name="shoulder_pan" joint="shoulder_pan"/>
+  <position class="position" name="shoulder_lift" joint="shoulder_lift"/>
+  <position class="position_limited" name="elbow" joint="elbow"/>
+  <position class="position_small" name="wrist_1" joint="wrist_1"/>
+  <position class="position_small" name="wrist_2" joint="wrist_2"/>
+  <position class="position_small" name="wrist_3" joint="wrist_3"/>
+</mujocoinclude>

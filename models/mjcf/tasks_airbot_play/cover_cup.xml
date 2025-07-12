@@ -1,10 +1,9 @@
 <mujoco model="cover_cup">
 
   <include file="../scene.xml"/>
-  <include file="../airbot_play/airbot_play_options.xml"/>
   <include file="../airbot_play/airbot_play_dependencies.xml"/>
 
-  <compiler meshdir="../../meshes/" texturedir="../../meshes/"/>
+  <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/"/>
 
   <include file="../object/coffeecup_dependencies.xml"/>
   <include file="../object/plate_white_dependencies.xml"/>

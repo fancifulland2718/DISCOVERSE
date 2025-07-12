@@ -51,7 +51,7 @@
 
   <asset>
     <material name="Paint_Matte_Black" specular="0.5" shininess="0.5" rgba="0.00111266039 0.00111266039 0.00111266039 1.0"/>
-    <material name="Paint_Metallic_Cool_Grey" specular="0.5" shininess="0.5" rgba="0.928523183 0.928523183 0.928523123 1.0"/>
+    <material name="Paint_Metallic_White" specular="0.5" shininess="0.5" rgba="0.928523183 0.928523183 0.928523123 1.0"/>
     <material name="Gree_Light_Base" specular="0.5" shininess="0.5" rgba="0.6 1 1 1"/>
   </asset>
 
@@ -71,4 +71,16 @@
     <mesh name="left" file="airbot_play/left.obj"/>
     <mesh name="right" file="airbot_play/right.obj"/>
   </asset>
+
+  <contact>
+    <exclude body1='arm_base' body2='link2'/>
+  </contact>
+
+  <tendon>
+    <fixed name='gripper_gear'>
+      <joint joint='endleft'  coef='-12.5'/>
+      <joint joint='endright' coef='12.5'/>
+    </fixed>
+  </tendon>
+
 </mujocoinclude>

@@ -1,17 +1,16 @@
 <mujoco model="stack_block">
 
   <include file="../scene.xml"/>
-  <include file="../airbot_play/airbot_play_options.xml"/>
   <include file="../airbot_play/airbot_play_dependencies.xml"/>
 
-  <compiler meshdir="../../meshes/" texturedir="../../meshes/"/>
+  <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/"/>
   <include file="../object/table_cloth_dependencies.xml"/>
 
   <worldbody>
 
     <!-- ======= AITBOT PLAY ======= -->
     <body name="arm_pose" pos="0.3 0.92 0.71" euler="0 0 3.1416">
-      <include file="../airbot_play/airbot_play_cam.xml"/>
+      <include file="../airbot_play/airbot_play.xml"/>
     </body>
 
     <!-- ======= block_green ======= -->

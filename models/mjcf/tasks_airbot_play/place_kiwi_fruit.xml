@@ -1,10 +1,9 @@
 <mujoco model="place_kiwi_fruit">
 
   <include file="../scene.xml"/>
-  <include file="../airbot_play/airbot_play_options.xml"/>
   <include file="../airbot_play/airbot_play_dependencies.xml"/>
 
-  <compiler meshdir="../../meshes/" texturedir="../../meshes/"/>
+  <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/"/>
 
   <include file="../object/kiwi_dependencies.xml"/>
   <include file="../object/flower_bowl_dependencies.xml"/>

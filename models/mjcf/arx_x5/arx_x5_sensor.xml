@@ -5,4 +5,5 @@
   <jointpos name="joint4_pos" joint="joint4"/>
   <jointpos name="joint5_pos" joint="joint5"/>
   <jointpos name="joint6_pos" joint="joint6"/>
+  <jointpos name="gripper" joint="finger_joint1"/>
 </mujocoinclude>

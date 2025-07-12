@@ -1,0 +1,26 @@
+<mujoco model="fr3">
+  <compiler angle="radian" meshdir="../meshes/" autolimits="true"/>
+  <option integrator="implicitfast"/>
+
+  <include file="scene/skybox.xml"/>
+  <include file="franka_fr3/fr3_dependencies.xml"/>
+
+  <worldbody>
+    <body name="fr3_pose" pos="0 0 0.78" euler="0 0 0">
+      <include file="franka_fr3/fr3.xml"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <include file="franka_fr3/fr3_control.xml"/>
+  </actuator>
+
+  <sensor>
+    <include file="franka_fr3/fr3_sensor.xml"/>
+  </sensor>
+
+  <keyframe>
+    <key qpos="0 0 0 -1.57079 0 1.57079 -0.7853" ctrl="0 0 0 -1.57079 0 1.57079 -0.7853"/>
+  </keyframe>
+
+</mujoco>

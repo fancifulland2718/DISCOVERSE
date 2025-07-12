@@ -4,13 +4,12 @@ from scipy.spatial.transform import Rotation
 
 import os
 import argparse
-import multiprocessing as mp
 
 from discoverse.robots import AirbotPlayIK
 from discoverse import DISCOVERSE_ROOT_DIR
 from discoverse.robots_env.airbot_play_base import AirbotPlayCfg
 from discoverse.utils import get_body_tmat, step_func, SimpleStateMachine
-from discoverse.task_base import AirbotPlayTaskBase, recoder_airbot_play, copypy2
+from discoverse.task_base import AirbotPlayTaskBase, recoder_airbot_play, batch_encode_videos, copypy2
 
 
 class SimNode(AirbotPlayTaskBase):
@@ -28,6 +27,21 @@ class SimNode(AirbotPlayTaskBase):
 
         # 随机 木板位置
         self.object_pose("wood")[:2] += 2.*(np.random.random() - 0.5) * np.array([0.035, 0.02])
+
+        # 随机桌子高度
+        self.random_table_height(obj_name_list=["plate_white", "coffeecup_white", "wood"])
+
+        # 随机 桌面纹理
+        self.random_table_texture()
+
+        # 随机物体材质
+        self.random_material("coffeecup_texture")
+        self.random_material("wood_texture")
+        self.random_material("plate_white_texture")
+        self.update_texture("wood_texture", self.get_random_texture())
+
+        # 随机 灯光
+        self.random_light()
 
         # # 随机 eye side 视角
         # camera = self.mj_model.camera("eye_side")
@@ -107,7 +121,7 @@ if __name__ == "__main__":
     max_time = 15.0 #s
 
     action = np.zeros(7)
-    process_list = []
+    video_tasks = []
 
     move_speed = 0.75
     sim_node.reset()
@@ -186,9 +200,8 @@ if __name__ == "__main__":
         if stm.state_idx >= stm.max_state_cnt:
             if sim_node.check_success():
                 save_path = os.path.join(save_dir, "{:03d}".format(data_idx))
-                process = mp.Process(target=recoder_airbot_play, args=(save_path, act_lst, obs_lst, cfg))
-                process.start()
-                process_list.append(process)
+                tasks = recoder_airbot_play(save_path, act_lst, obs_lst, cfg)
+                video_tasks.extend(tasks)
 
                 data_idx += 1
                 print("\r{:4}/{:4} ".format(data_idx, data_set_size), end="")
@@ -199,5 +212,6 @@ if __name__ == "__main__":
 
             sim_node.reset()
 
-    for p in process_list:
-        p.join()
+    if video_tasks:
+        max_workers = min(4, max(2, os.cpu_count() // 2))
+        batch_encode_videos(video_tasks, max_workers=max_workers)

@@ -3,16 +3,19 @@ import json
 import glfw
 import shutil
 import mujoco
-import mediapy
 import numpy as np
 from scipy.spatial.transform import Rotation
+from discoverse import DISCOVERSE_ASSETS_DIR
 from discoverse.robots_env.airbot_play_base import AirbotPlayBase
+import pickle
 
 def recoder_airbot_play(save_path, act_lst, obs_lst, cfg):
+    """保存数据但延迟视频编码，返回视频编码任务信息"""
     if os.path.exists(save_path):
         shutil.rmtree(save_path)
     os.makedirs(save_path, exist_ok=True)
 
+    # 保存JSON数据
     with open(os.path.join(save_path, "obs_action.json"), "w") as fp:
         obj = {
             "time" : [o['time'] for o in obs_lst],
@@ -23,8 +26,21 @@ def recoder_airbot_play(save_path, act_lst, obs_lst, cfg):
         }
         json.dump(obj, fp)
 
+    # 保存视频数据为pickle文件，稍后编码
+    video_tasks = []
     for id in cfg.obs_rgb_cam_id:
-        mediapy.write_video(os.path.join(save_path, f"cam_{id}.mp4"), [o['img'][id] for o in obs_lst], fps=cfg.render_set["fps"])
+        video_data_path = os.path.join(save_path, f"cam_{id}_data.pkl")
+        video_frames = [o['img'][id] for o in obs_lst]
+        with open(video_data_path, 'wb') as f:
+            pickle.dump(video_frames, f)
+        
+        video_tasks.append({
+            'data_path': video_data_path,
+            'output_path': os.path.join(save_path, f"cam_{id}.mp4"),
+            'fps': cfg.render_set["fps"]
+        })
+    
+    return video_tasks
 
 class AirbotPlayTaskBase(AirbotPlayBase):
     target_control = np.zeros(7)
@@ -44,6 +60,64 @@ class AirbotPlayTaskBase(AirbotPlayBase):
         self.domain_randomization()
         mujoco.mj_forward(self.mj_model, self.mj_data)
         self.reset_sig = True
+
+    def random_table_height(self, table_name="table", obj_name_list=[]):
+        if not hasattr(self, "table_init_posi"):
+            self.table_init_posi = self.mj_model.body(table_name).pos.copy()
+        change_height = np.random.uniform(0, 0.1)
+        self.mj_model.body(table_name).pos = self.table_init_posi.copy()
+        self.mj_model.body(table_name).pos[2] = self.table_init_posi[2] - change_height
+        for obj_name in obj_name_list:
+            self.object_pose(obj_name)[2] -= change_height
+    
+    def random_table_texture(self):
+        self.update_texture("tc_texture", self.get_random_texture())
+        self.random_material("tc_texture")
+    
+    def random_material(self, mtl_name, random_color=False, emission=False):
+        try:
+            if random_color:
+                self.mj_model.material(mtl_name).rgba[:3] = np.random.rand(3)
+            if emission:
+                self.mj_model.material(mtl_name).emission = np.random.rand()
+            self.mj_model.material(mtl_name).specular = np.random.rand()
+            self.mj_model.material(mtl_name).reflectance = np.random.rand()
+            self.mj_model.material(mtl_name).shininess = np.random.rand()
+        except KeyError:
+            print(f"Warning: material {mtl_name} not found")
+
+    def random_light(self, random_dir=True, random_color=True, random_active=True, write_color=False):
+        if write_color:
+            for i in range(self.mj_model.nlight):
+                self.mj_model.light_ambient[i, :] = np.random.random()
+                self.mj_model.light_diffuse[i, :] = np.random.random()
+                self.mj_model.light_specular[i, :] = np.random.random()
+        elif random_color:
+            self.mj_model.light_ambient[...] = np.random.random(size=self.mj_model.light_ambient.shape)
+            self.mj_model.light_diffuse[...] = np.random.random(size=self.mj_model.light_diffuse.shape)
+            self.mj_model.light_specular[...] = np.random.random(size=self.mj_model.light_specular.shape)
+
+        if write_color or random_color:
+            for i in range(self.mj_model.nlight):
+                if self.mj_model.light_directional[i]:
+                    self.mj_model.light_diffuse[i, :] *= 0.2
+                    self.mj_model.light_ambient[i, :] *= 0.5
+                    self.mj_model.light_specular[i, :] *= 0.5
+
+        if random_active:
+            self.mj_model.light_active[:] = np.int32(np.random.rand(self.mj_model.nlight) > 0.5).tolist()
+        
+        if np.sum(self.mj_model.light_active) == 0:
+            self.mj_model.light_active[np.random.randint(self.mj_model.nlight)] = 1
+
+        self.mj_model.light_pos[:,:2] = self.mj_model.light_pos0[:,:2] + np.random.normal(scale=0.3, size=self.mj_model.light_pos[:,:2].shape)
+        self.mj_model.light_pos[:,2] = self.mj_model.light_pos0[:,2] + np.random.normal(scale=0.2, size=self.mj_model.light_pos[:,2].shape)
+
+        if random_dir:
+            self.mj_model.light_dir[:] = np.random.random(size=self.mj_model.light_dir.shape) - 0.5
+            self.mj_model.light_dir[:,2] *= 2.0
+            self.mj_model.light_dir[:] = self.mj_model.light_dir[:] / np.linalg.norm(self.mj_model.light_dir[:], axis=1, keepdims=True)
+            self.mj_model.light_dir[:,2] = -np.abs(self.mj_model.light_dir[:,2])
 
     def domain_randomization(self):
         pass

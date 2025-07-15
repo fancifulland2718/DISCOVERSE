@@ -4,6 +4,7 @@
 
   <include file="scene/skybox.xml"/>
   <include file="airbot_play/airbot_play_dependencies.xml"/>
+  <include file="airbot_play/airbot_play_appendix.xml"/>
 
   <worldbody>
     <body name="airbot_play" pos="0 0 0.78" euler="0 0 0">

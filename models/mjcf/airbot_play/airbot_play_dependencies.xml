@@ -72,15 +72,4 @@
     <mesh name="right" file="airbot_play/right.obj"/>
   </asset>
 
-  <contact>
-    <exclude body1='arm_base' body2='link2'/>
-  </contact>
-
-  <tendon>
-    <fixed name='gripper_gear'>
-      <joint joint='endleft'  coef='-12.5'/>
-      <joint joint='endright' coef='12.5'/>
-    </fixed>
-  </tendon>
-
 </mujocoinclude>

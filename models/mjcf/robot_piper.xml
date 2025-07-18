@@ -2,20 +2,20 @@
   <compiler angle="radian" meshdir="../meshes/" autolimits="true"/>
 
   <include file="scene/skybox.xml"/>
-  <include file="piper/piper_dependencies.xml"/>
+  <include file="agilex_piper/piper_dependencies.xml"/>
 
   <worldbody>
     <body name="piper_pose" pos="0 0 0.78" euler="0 0 0">
-      <include file="piper/piper.xml"/>
+      <include file="agilex_piper/piper.xml"/>
     </body>
   </worldbody>
 
   <actuator>
-    <include file="piper/piper_control.xml"/>
+    <include file="agilex_piper/piper_control.xml"/>
   </actuator>
 
   <sensor>
-    <include file="piper/piper_sensor.xml"/>
+    <include file="agilex_piper/piper_sensor.xml"/>
   </sensor>
 
   <keyframe>

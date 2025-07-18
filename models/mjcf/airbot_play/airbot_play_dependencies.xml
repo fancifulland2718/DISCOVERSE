@@ -45,7 +45,9 @@
       <default class='finger2'>
         <joint axis='0 1 0' range="0 0.04" type='slide' damping="0.5" frictionloss="15"/>
       </default>
+
     </default>
+    <site size="0.001" group="3"/>
 
   </default>
 

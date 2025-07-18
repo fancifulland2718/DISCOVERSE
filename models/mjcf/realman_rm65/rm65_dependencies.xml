@@ -22,6 +22,7 @@
         <equality solimp="0.99 0.999 1e-05" solref="0.005 1" />
       </default>
     </default>
+    <site size="0.001" group="3"/>
   </default>
 
   <asset>

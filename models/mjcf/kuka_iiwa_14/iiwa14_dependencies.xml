@@ -19,18 +19,37 @@
         <joint range="-3.05433 3.05433"/>
         <general ctrlrange="-3.05433 3.05433"/>
       </default>
+
+      <default class="2f85_driver">
+        <joint axis="1 0 0" range="0 0.8" armature="0.005" damping="0.1" solimplimit="0.95 0.99 0.001" solreflimit="0.005 1"/>
+      </default>
+      <default class="2f85_follower">
+        <joint axis="1 0 0" range="-0.872664 0.872664" armature="0.001" pos="0 -0.018 0.0065" solimplimit="0.95 0.99 0.001" solreflimit="0.005 1"/>
+      </default>
+      <default class="2f85_spring_link">
+        <joint axis="1 0 0" range="-0.29670597283 0.8" armature="0.001" stiffness="0.05" springref="2.62" damping="0.00125"/>
+      </default>
+      <default class="2f85_coupler">
+        <joint axis="1 0 0" range="-1.57 0" armature="0.001" solimplimit="0.95 0.99 0.001" solreflimit="0.005 1"/>
+      </default>
+
       <default class="visual">
         <geom type="mesh" contype="0" conaffinity="0" group="2" material="gray"/>
       </default>
       <default class="collision">
         <geom group="3"/>
+        <default class="pad_box1">
+          <geom mass="0" type="box" pos="0 -0.0026 0.028125" size="0.011 0.004 0.009375" friction="0.7" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1" rgba="0.55 0.55 0.55 1"/>
+        </default>
+        <default class="pad_box2">
+          <geom mass="0" type="box" pos="0 -0.0026 0.009375" size="0.011 0.004 0.009375" friction="0.6" solimp="0.95 0.99 0.001" solref="0.004 1" priority="1" rgba="0.45 0.45 0.45 1"/>
+        </default>
       </default>
-      <site size="0.001" rgba="1 0 0 1" group="4"/>
+      <site size="0.001" group="3"/>
     </default>
   </default>
 
   <asset>
-    <material class="iiwa" name="gray" rgba="0.4 0.4 0.4 1"/>
     <material class="iiwa" name="light_gray" rgba="0.6 0.6 0.6 1"/>
     <material class="iiwa" name="black" rgba="0 0 0 1"/>
     <material class="iiwa" name="orange" rgba="1 0.423529 0.0392157 1"/>
@@ -48,6 +67,20 @@
     <mesh file="link_6_orange.obj"/>
     <mesh file="link_6_grey.obj"/>
     <mesh file="link_7.obj"/>
+
+    <material name="metal" rgba="0.58 0.58 0.58 1"/>
+    <material name="silicone" rgba="0.1882 0.1882 0.1882 1"/>
+    <material name="gray" rgba="0.4627 0.4627 0.4627 1"/>
+    <material name="2f85_black" rgba="0.149 0.149 0.149 1"/>
+
+    <mesh name="2f85_base_mount" file="2f85_base_mount.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="2f85_base" file="2f85_base.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="2f85_driver" file="2f85_driver.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="2f85_coupler" file="2f85_coupler.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="2f85_follower" file="2f85_follower.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="2f85_pad" file="2f85_pad.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="2f85_silicone_pad" file="2f85_silicone_pad.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="2f85_spring_link" file="2f85_spring_link.stl" scale="0.001 0.001 0.001"/>
   </asset>
 
   <contact>
@@ -58,6 +91,26 @@
     <exclude body1="link3" body2="link5"/>
     <exclude body1="link4" body2="link7"/>
     <exclude body1="link5" body2="link7"/>
+
+    <exclude body1="2f85_base" body2="2f85_left_driver"/>
+    <exclude body1="2f85_base" body2="2f85_right_driver"/>
+    <exclude body1="2f85_base" body2="2f85_left_spring_link"/>
+    <exclude body1="2f85_base" body2="2f85_right_spring_link"/>
+    <exclude body1="2f85_right_coupler" body2="2f85_right_follower"/>
+    <exclude body1="2f85_left_coupler" body2="2f85_left_follower"/>
   </contact>
+
+  <tendon>
+    <fixed name="split">
+      <joint joint="right_driver_joint" coef="0.5"/>
+      <joint joint="left_driver_joint" coef="0.5"/>
+    </fixed>
+  </tendon>
+
+  <equality>
+    <connect anchor="0 0 0" body1="2f85_right_follower" body2="2f85_right_coupler" solimp="0.95 0.99 0.001" solref="0.005 1"/>
+    <connect anchor="0 0 0" body1="2f85_left_follower" body2="2f85_left_coupler" solimp="0.95 0.99 0.001" solref="0.005 1"/>
+    <joint joint1="right_driver_joint" joint2="left_driver_joint" polycoef="0 1 0 0 0" solimp="0.95 0.99 0.001" solref="0.005 1"/>
+  </equality>
 
 </mujocoinclude>

@@ -1,9 +1,0 @@
-<mujocoinclude>
-  <jointpos name="fr3_joint1" joint="fr3_joint1"/>
-  <jointpos name="fr3_joint2" joint="fr3_joint2"/>
-  <jointpos name="fr3_joint3" joint="fr3_joint3"/>
-  <jointpos name="fr3_joint4" joint="fr3_joint4"/>
-  <jointpos name="fr3_joint5" joint="fr3_joint5"/>
-  <jointpos name="fr3_joint6" joint="fr3_joint6"/>
-  <jointpos name="fr3_joint7" joint="fr3_joint7"/>
-</mujocoinclude>

@@ -6,4 +6,5 @@
   <general name="actuator5" joint="joint5" class="joint1"/>
   <general name="actuator6" joint="joint6" class="joint2"/>
   <general name="actuator7" joint="joint7" class="joint3"/>
+  <general name="fingers_actuator" tendon="split" biastype="affine" forcerange="-5 5" ctrlrange="0 255" gainprm="0.3137255 0 0" biasprm="0 -100 -10"/>
 </mujocoinclude>

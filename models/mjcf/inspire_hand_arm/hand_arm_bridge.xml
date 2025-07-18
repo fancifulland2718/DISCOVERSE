@@ -79,7 +79,7 @@
 
                   <inertial pos="-0.0047053 7.3857e-05 -0.12293" mass="0.53855" diaginertia="5e-05 5e-05 3.85e-05"/>
                   <joint name="joint6" class="joint6"/>
-                  <site name="endpoint" pos='0 0 0' euler="0 -1.5708 0" size='0.001' type='sphere'/>
+                  <site name="endpoint" euler="0 -1.5708 0"/>
                     <!-- ======= 连接手部模型 ======= -->
                     <body name="base_link" pos="0 0 0" quat="0.707388 0 0 0.706825">
                       <include file="hand_mjcf/convex_dec_include/base_link_geom_include.xml"/>

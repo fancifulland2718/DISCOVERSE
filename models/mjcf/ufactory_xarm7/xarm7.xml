@@ -1,5 +1,6 @@
 <mujocoinclude>
   <geom type="cylinder" size=".06 .06" pos="0 0 .06" rgba="1 1 1 1"/>
+  <site name="armbase"/>
   <body name="link_base" pos="0 0 .12" childclass="xarm7">
     <inertial pos="-0.021131 -0.0016302 0.056488" quat="0.696843 0.20176 0.10388 0.680376" mass="0.88556" diaginertia="0.00382023 0.00335282 0.00167725"/>
     <geom mesh="link_base"/>
@@ -68,7 +69,7 @@
                       <joint name="right_inner_knuckle_joint" axis="-1 0 0" class="spring_link"/>
                       <geom material="black" mesh="right_inner_knuckle"/>
                     </body>
-                    <site name="link_tcp" pos="0 0 .172"/>
+                    <site name="link_tcp" pos="0 0 0.16" quat="-1 0 1 0"/>
                   </body>
                 </body>
               </body>

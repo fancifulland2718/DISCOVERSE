@@ -16,6 +16,7 @@
         <geom group="3" type="capsule"/>
       </default>
     </default>
+    <site size="0.001" group="3"/>
   </default>
 
   <asset>

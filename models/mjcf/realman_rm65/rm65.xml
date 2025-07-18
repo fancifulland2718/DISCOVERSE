@@ -1,6 +1,6 @@
 <mujocoinclude>
-
   <body name="base_link" quat="0 0 0 1" childclass="robot">
+    <site name="armbase" quat="0 0 0 1"/>
     <inertial pos="-0.00043263 -3.2791E-05 0.059984" quat="1.0 0.0 0.0 0.0" mass="0.84048" diaginertia="0.001724 0.0017077 0.00090401" />
     <geom name="base_link_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="base_link.STL" class="collision" />
     <geom pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" class="visual" name="base_link_visual_0" mesh="base_link_0" material="base_link_Material-外壳_001-material" />
@@ -50,6 +50,7 @@
                     <inertial pos="-6.7908E-06 -3.0546E-06 0.038387" quat="1.0 0.0 0.0 0.0" mass="0.07993" diaginertia="6.2249e-05 5.235e-05 2.2082e-05" />
                     <geom name="gripper_base_link_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="gripper_base_link.STL" class="collision" />
                     <geom name="gripper_base_link_visual" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="gripper_base_link.STL" material="default_material" class="visual" />
+                    <site name="endpoint" pos="0 0 0.14" quat="0 0.707 0 0.707"/>
                     <body name="link7" pos="-0.009 0.04 0.083" quat="1.0 0.0 0.0 0.0">
                       <inertial pos="0.009 -0.0087669 0.013992" quat="1.0 0.0 0.0 0.0" mass="0.0024292" diaginertia="5.7398e-07 5.1061e-07 2.6747e-07" />
                       <joint name="gripper_joint1" type="hinge" class="gripper" range="0 0.82" axis="-1 0 0" />

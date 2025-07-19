@@ -97,13 +97,6 @@ class AirbotPlayTaskBase(AirbotPlayBase):
             self.mj_model.light_diffuse[...] = np.random.random(size=self.mj_model.light_diffuse.shape)
             self.mj_model.light_specular[...] = np.random.random(size=self.mj_model.light_specular.shape)
 
-        if write_color or random_color:
-            for i in range(self.mj_model.nlight):
-                if self.mj_model.light_directional[i]:
-                    self.mj_model.light_diffuse[i, :] *= 0.2
-                    self.mj_model.light_ambient[i, :] *= 0.5
-                    self.mj_model.light_specular[i, :] *= 0.5
-
         if random_active:
             self.mj_model.light_active[:] = np.int32(np.random.rand(self.mj_model.nlight) > 0.5).tolist()
         

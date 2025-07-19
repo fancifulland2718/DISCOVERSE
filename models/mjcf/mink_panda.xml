@@ -2,7 +2,7 @@
   <compiler angle="radian" meshdir="../meshes/" autolimits="true"/>
   <option integrator="implicitfast"/>
 
-  <include file="scene/skybox.xml"/>
+  <include file="../scene/skybox.xml"/>
   <include file="franka_emika_panda/panda_dependencies.xml"/>
 
   <worldbody>

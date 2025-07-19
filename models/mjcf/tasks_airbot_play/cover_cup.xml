@@ -2,6 +2,7 @@
 
   <include file="../scene.xml"/>
   <include file="../airbot_play/airbot_play_dependencies.xml"/>
+  <include file="../airbot_play/airbot_play_appendix.xml"/>
 
   <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/"/>
 

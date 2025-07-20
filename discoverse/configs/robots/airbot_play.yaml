@@ -25,8 +25,8 @@ gripper:
   qpos_joints: ["endleft", "endright"]  # qpos关节名称
   qpos_indices: [6, 7]               # qpos关节索引 (0-based)
   tendon_name: "gripper_gear"        # tendon名称
-  ctrl_range: [0.0, 1.0]            # 控制范围 (0=闭合, 1=打开)
-  default_position: 1.0              # 默认位置 (完全打开)
+  ctrl_range: [0.0, 0.04]            # 控制范围 (0=闭合, 0.04=打开)
+  default_position: 0.04             # 默认位置 (完全打开)
   close_position: 0.0                # 关闭位置
   grasp_threshold: 0.5               # 抓取检测阈值
   sensor_name: "gripper_pos"         # 传感器名称
@@ -101,17 +101,11 @@ sensors:
     gyro: "endpoint_gyro"            # 末端角速度
     accelerometer: "endpoint_acc"    # 末端加速度
 
-# ============== 特殊配置 ==============
-special_features:
-  compliance_control: false          # 柔顺控制能力
-  cartesian_impedance: false         # 笛卡尔阻抗控制
-  nullspace_control: true            # 零空间控制
-
 # ============== IK求解配置 ==============
 ik_solver:
   solver_type: "quadprog"            # 使用quadprog求解器
-  position_tolerance: 0.035          # 位置收敛阈值 (m) - 3.5cm (放宽至达标精度)
-  orientation_tolerance: 0.5         # 姿态收敛阈值 (rad) - 放宽
+  position_tolerance: 0.01           # 位置收敛阈值 (m) 
+  orientation_tolerance: 0.05        # 姿态收敛阈值 (rad)
   max_iterations: 50                 # 增加最大迭代次数
   damping: 1.0                       # LM阻尼系数
   position_cost: 100.0               # 位置任务权重

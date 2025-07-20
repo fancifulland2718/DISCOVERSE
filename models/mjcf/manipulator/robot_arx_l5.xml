@@ -4,6 +4,7 @@
 
   <include file="../scene/skybox.xml"/>
   <include file="arx_l5/arx_l5_dependencies.xml"/>
+  <include file="arx_l5/arx_l5_appendix.xml"/>
 
   <worldbody>
     <body name="arx_l5_pose" pos="0 0 0.78" euler="0 0 0">

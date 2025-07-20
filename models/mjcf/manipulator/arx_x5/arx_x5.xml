@@ -34,12 +34,16 @@
                   <joint name="finger_joint1" pos="0 0 0" axis="0 1 0" type="slide" range="0 0.044" actuatorfrcrange="-50 50" damping="2"/>
                   <geom type="mesh" material="metal_black" mesh="link7" class="visual"/>
                   <geom type="mesh" mesh="link7_collision" class="collision"/>
+                  <geom type="box" size=".02 .002 .00525" pos="0.05 -0.023 0" rgba="1 0 0 1" class="collision"/>
+                  <geom type="box" size=".015 .002 .018" pos="0.015 -0.023 0" rgba="0 0 1 1" class="collision"/>
                 </body>
                 <body name="link8" pos="0.08657 -0.0249 -0.00024366">
                   <inertial pos="-0.00035522 0.0078277 0.0024201" quat="0.5 0.5 0.5 0.5" mass="0.064798" diaginertia="3e-05 3e-05 2e-05"/>
                   <joint name="finger_joint2" pos="0 0 0" axis="0 -1 0" type="slide" range="0 0.044" actuatorfrcrange="-50 50" damping="2"/>
                   <geom type="mesh" material="metal_black" mesh="link8" class="visual"/>
                   <geom type="mesh" mesh="link8_collision" class="collision"/>
+                  <geom type="box" size=".02 .002 .00525" pos="0.05 0.023 0" rgba="1 0 0 1" class="collision"/>
+                  <geom type="box" size=".015 .002 .018" pos="0.015 0.023 0" rgba="0 0 1 1" class="collision"/>
                 </body>
               </body>
             </body>

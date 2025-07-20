@@ -597,9 +597,11 @@ class RobotInterface(ABC):
         """
         try:
             if state == "open":
-                return self.gripper_controller.open()
+                open_pos = self.gripper_controller.open()
+                return self.gripper_controller.set_position(open_pos)
             elif state == "close":
-                return self.gripper_controller.close()
+                close_pos = self.gripper_controller.close()
+                return self.gripper_controller.set_position(close_pos)
             elif state == "position" and position is not None:
                 return self.gripper_controller.set_position(position)
             else:

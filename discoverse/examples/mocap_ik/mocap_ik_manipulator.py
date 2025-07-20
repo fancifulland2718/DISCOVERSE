@@ -151,10 +151,16 @@ if __name__ == "__main__":
     mocap_name = "target"
     mocap_box_name = mocap_name + "_box"
 
-    # 生成mocap刚体XML
-    mocap_body_xml = generate_mocap_xml(mocap_name)
-    # 将mocap刚体添加到模型中
-    mj_model = add_mocup_body_to_mjcf(mjcf_path, mocap_body_xml, keep_tmp_xml=True)
+    mj_model = mujoco.MjModel.from_xml_path(mjcf_path)
+    try:
+        mid = mj_model.body(mocap_name).mocapid[0]
+        if mid == -1:
+            raise KeyError(f"Mocap body '{mocap_name}' not found")
+    except KeyError:
+        # 生成mocap刚体XML
+        mocap_body_xml = generate_mocap_xml(mocap_name)
+        # 将mocap刚体添加到模型中
+        mj_model = add_mocup_body_to_mjcf(mjcf_path, mocap_body_xml, keep_tmp_xml=True)
     mj_data = mujoco.MjData(mj_model)
 
     # Create a Mink configuration

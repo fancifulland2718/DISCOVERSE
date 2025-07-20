@@ -1,40 +1,21 @@
-"""
-通用机械臂place_block任务演示 - [运行架构]版本
-
-支持多种机械臂：airbot_play, arx_x5, arx_l5, piper
-
-采用原始place_block.py的高效运行架构：
-- 高频主循环 (物理模拟240Hz)
-- 低频任务设置 (非阻塞)
-- 平滑控制执行
-- 终止条件检查
-
-同时保留universal_manipulation配置驱动系统
-- 动作原语
-- Mink IK求解器
-"""
-
-import sys
+import os
 import time
-import numpy as np
+import traceback
+
+import mink
 import mujoco
-from pathlib import Path
-from scipy.spatial.transform import Rotation
+import numpy as np
 
-# 添加项目根目录到路径
-project_root = Path(__file__).parent.parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-print("🎬 强制启用可视化模式 (通用运行架构版)")
-
+import discoverse
+from discoverse.envs import make_env
 from discoverse import DISCOVERSE_ASSETS_DIR
 from discoverse.universal_manipulation import UniversalTaskBase
 from discoverse.utils import SimpleStateMachine, step_func, get_body_tmat
 
 class UniversalRuntimeTaskExecutor:
     """通用运行时任务执行器 - 采用高频循环架构，支持多种机械臂"""
-    
-    def __init__(self, task, viewer, model, data, robot_name):
+
+    def __init__(self, task: UniversalTaskBase, viewer, mj_model: mujoco.MjModel, mj_data: mujoco.MjData, robot_name: str, sync: bool = False):
         """
         初始化运行时执行器
         
@@ -44,12 +25,18 @@ class UniversalRuntimeTaskExecutor:
             model: MuJoCo模型
             data: MuJoCo数据
             robot_name: 机械臂名称
+            sync: 是否启用实时同步（仿真时间与真实时间一致）
         """
         self.task = task
         self.viewer = viewer
-        self.model = model
-        self.data = data
+        self.mj_model = mj_model
+        self.mj_data = mj_data
         self.robot_name = robot_name
+        self.sync = sync  # 实时同步选项
+        
+        # 时间和频率控制
+        self.sim_timestep = mj_model.opt.timestep  # 仿真时间步长
+        self.render_fps = 60
         
         # 任务配置
         self.resolved_states = task.task_config.get_resolved_states()
@@ -60,7 +47,7 @@ class UniversalRuntimeTaskExecutor:
         self.stm.max_state_cnt = self.total_states
         
         # 控制状态 - 使用MuJoCo实际控制器数量
-        self.mujoco_ctrl_dim = model.nu  # MuJoCo控制器维度
+        self.mujoco_ctrl_dim = mj_model.nu  # MuJoCo控制器维度
         self.target_control = np.zeros(self.mujoco_ctrl_dim)
         self.action = np.zeros(self.mujoco_ctrl_dim)
         self.move_speed = 0.75  # 控制速度
@@ -71,6 +58,11 @@ class UniversalRuntimeTaskExecutor:
         self.max_time = 30.0  # 最大执行时间
         self.start_time = time.time()
         self.success = False
+        self.viewer_closed = False  # 新增: 标记viewer是否被关闭
+        
+        # 延时支持
+        self.current_delay = 0.0  # 当前状态的延时时间
+        self.delay_start_sim_time = None  # 延时开始的仿真时间
         
         # 从任务配置获取机械臂维度信息
         self.arm_joints = len(task.robot_interface.arm_joints)  # 机械臂关节数
@@ -84,17 +76,29 @@ class UniversalRuntimeTaskExecutor:
         print(f"   机械臂自由度: {self.arm_joints}")
         print(f"   MuJoCo控制器维度: {self.mujoco_ctrl_dim}")
         print(f"   夹爪控制索引: {self.gripper_ctrl_idx}")
+        print(f"   实时同步: {'✅ 启用' if self.sync else '❌ 禁用'}")
+        print(f"   渲染频率: {self.render_fps} Hz")
+        print(f"   仿真时间步长: {self.sim_timestep} s")
     
     def get_current_qpos(self):
         """获取当前关节位置"""
-        return self.data.qpos.copy()
+        return self.mj_data.qpos.copy()
     
     def check_action_done(self):
         """检查动作是否完成"""
         current_qpos = self.get_current_qpos()
         # 只检查机械臂关节
         position_error = np.linalg.norm(current_qpos[:self.arm_joints] - self.target_control[:self.arm_joints])
-        return position_error < 0.02  # 2cm容差
+        position_done = position_error < 0.02  # 2cm容差
+        
+        # 检查延时条件
+        if self.current_delay > 0 and self.delay_start_sim_time is not None:
+            delay_elapsed = self.mj_data.time - self.delay_start_sim_time
+            delay_done = delay_elapsed >= self.current_delay
+            if not delay_done:
+                return False  # 延时未完成，动作未完成
+            
+        return position_done
     
     def set_target_from_primitive(self, state_config):
         """使用原语设置目标控制信号"""
@@ -112,19 +116,19 @@ class UniversalRuntimeTaskExecutor:
                 
                 if object_name:
                     # 获取物体位置
-                    object_tmat = get_body_tmat(self.data, object_name)
+                    object_tmat = get_body_tmat(self.mj_data, object_name)
                     target_pos = object_tmat[:3, 3] + offset
                     
                     # 获取当前末端执行器姿态矩阵（从MuJoCo数据直接读取）
                     site_name = self.task.robot_interface.robot_config.end_effector_site
-                    site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, site_name)
-                    current_ori = self.data.site_xmat[site_id].reshape(3, 3).copy()
+                    site_id = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_SITE, site_name)
+                    current_ori = self.mj_data.site_xmat[site_id].reshape(3, 3).copy()
                     
                     print(f"   🎯 目标位置: {target_pos}")
                     print(f"   ✅ 使用当前姿态作为目标（避免大幅度旋转）")
                     
                     # 获取完整的qpos (包含所有自由度)
-                    full_current_qpos = self.data.qpos.copy()
+                    full_current_qpos = self.mj_data.qpos.copy()
                     
                     # 求解IK
                     solution, converged, solve_info = self.task.robot_interface.ik_solver.solve_ik(
@@ -145,9 +149,9 @@ class UniversalRuntimeTaskExecutor:
                 
                 # 获取当前位置
                 site_name = self.task.robot_interface.robot_config.end_effector_site
-                site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, site_name)
-                current_pos = self.data.site_xpos[site_id].copy()
-                current_ori = self.data.site_xmat[site_id].reshape(3, 3).copy()
+                site_id = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_SITE, site_name)
+                current_pos = self.mj_data.site_xpos[site_id].copy()
+                current_ori = self.mj_data.site_xmat[site_id].reshape(3, 3).copy()
                 
                 target_pos = current_pos + offset
                 
@@ -155,7 +159,7 @@ class UniversalRuntimeTaskExecutor:
                 print(f"   🎯 目标位置: {target_pos} (偏移: {offset})")
                 
                 # 获取完整的qpos
-                full_current_qpos = self.data.qpos.copy()
+                full_current_qpos = self.mj_data.qpos.copy()
                 
                 # 求解IK
                 solution, converged, solve_info = self.task.robot_interface.ik_solver.solve_ik(
@@ -181,7 +185,7 @@ class UniversalRuntimeTaskExecutor:
                 self.target_control[self.gripper_ctrl_idx] = self.task.robot_interface.gripper_controller.close()
             
             # 计算关节移动比例（用于速度控制）
-            current_ctrl = self.data.ctrl[:self.mujoco_ctrl_dim].copy()
+            current_ctrl = self.mj_data.ctrl[:self.mujoco_ctrl_dim].copy()
             dif = np.abs(current_ctrl - self.target_control)
             self.joint_move_ratio = dif / (np.max(dif) + 1e-6)
             
@@ -189,7 +193,6 @@ class UniversalRuntimeTaskExecutor:
             
         except Exception as e:
             print(f"   ❌ 原语执行失败: {e}")
-            import traceback
             traceback.print_exc()
             return False
     
@@ -202,6 +205,11 @@ class UniversalRuntimeTaskExecutor:
                     state_config = self.resolved_states[self.stm.state_idx]
                     print(f"\\n🎯 状态 {self.stm.state_idx+1}/{self.total_states}: {state_config['name']}")
                     
+                    # 获取延时配置
+                    self.current_delay = state_config.get("delay", 0.0)
+                    if self.current_delay > 0:
+                        print(f"   ⏱️  状态延时: {self.current_delay}s")
+                    
                     # 设置mocap可视化
                     self.set_mocap_target(state_config)
                     
@@ -209,6 +217,10 @@ class UniversalRuntimeTaskExecutor:
                     if not self.set_target_from_primitive(state_config):
                         print(f"   ❌ 状态 {self.stm.state_idx} 设置失败")
                         return False
+                        
+                    # 如果有延时，记录开始的仿真时间
+                    if self.current_delay > 0:
+                        self.delay_start_sim_time = self.mj_data.time
                 else:
                     # 所有状态完成，检查成功条件
                     self.success = self.check_task_success()
@@ -226,7 +238,17 @@ class UniversalRuntimeTaskExecutor:
             
             # 检查动作完成条件 (高频)
             if self.check_action_done():
+                # 如果有延时，显示延时完成信息
+                if self.current_delay > 0 and self.delay_start_sim_time is not None:
+                    delay_elapsed = self.mj_data.time - self.delay_start_sim_time
+                    print(f"   ⏱️  延时完成: {delay_elapsed:.2f}s / {self.current_delay}s (仿真时间)")
+                
                 print(f"   ✅ 状态 {self.stm.state_idx+1} 完成")
+                
+                # 重置延时相关变量
+                self.current_delay = 0.0
+                self.delay_start_sim_time = None
+                
                 self.stm.next()
             
             # 平滑控制执行 (高频) - 只控制机械臂关节
@@ -234,21 +256,17 @@ class UniversalRuntimeTaskExecutor:
                 self.action[i] = step_func(
                     self.action[i], 
                     self.target_control[i], 
-                    self.move_speed * self.joint_move_ratio[i] * (1/240)  # 假设240Hz
+                    self.move_speed * self.joint_move_ratio[i] * self.mj_model.opt.timestep
                 )
             # 夹爪直接设置
             self.action[self.gripper_ctrl_idx] = self.target_control[self.gripper_ctrl_idx]
             
             # 设置控制信号到MuJoCo - 使用实际控制器维度
-            self.data.ctrl[:self.mujoco_ctrl_dim] = self.action[:self.mujoco_ctrl_dim]
+            self.mj_data.ctrl[:self.mujoco_ctrl_dim] = self.action[:self.mujoco_ctrl_dim]
             
             # 物理步进 (高频)
-            mujoco.mj_step(self.model, self.data)
-            
-            # 可视化同步
-            if self.viewer is not None:
-                self.viewer.sync()
-            
+            mujoco.mj_step(self.mj_model, self.mj_data)
+
             return True
             
         except Exception as e:
@@ -263,16 +281,16 @@ class UniversalRuntimeTaskExecutor:
                 object_name = state_config.get('params', {}).get('object_name', '')
                 offset = state_config.get('params', {}).get('offset', [0, 0, 0])
                 
-                if object_name and hasattr(self.data, 'body'):
-                    object_pos = self.data.body(object_name).xpos.copy()
+                if object_name and hasattr(self.mj_data, 'body'):
+                    object_pos = self.mj_data.body(object_name).xpos.copy()
                     target_pos = object_pos + np.array(offset)
                     
                     # 设置mocap目标位置
                     try:
-                        mocap_id = self.model.body('target').mocapid
+                        mocap_id = self.mj_model.body('target').mocapid
                         if mocap_id >= 0:
-                            self.data.mocap_pos[mocap_id] = target_pos
-                            self.model.geom('target_box').rgba = np.array([1.0, 1.0, 0.3, 0.3])  # 黄色目标
+                            self.mj_data.mocap_pos[mocap_id] = target_pos
+                            self.mj_model.geom('target_box').rgba = np.array([1.0, 1.0, 0.3, 0.3])  # 黄色目标
                             print(f"   🎯 Mocap目标: {target_pos}")
                     except:
                         pass  # 如果没有mocap目标，忽略
@@ -283,8 +301,8 @@ class UniversalRuntimeTaskExecutor:
         """检查任务成功条件"""
         try:
             # 检查绿色方块是否在粉色碗中
-            block_pos = self.data.body('block_green').xpos
-            bowl_pos = self.data.body('bowl_pink').xpos
+            block_pos = self.mj_data.body('block_green').xpos
+            bowl_pos = self.mj_data.body('bowl_pink').xpos
             distance = np.linalg.norm(block_pos[:2] - bowl_pos[:2])  # 只检查XY平面
             return distance < 0.03  # 3cm容差
         except:
@@ -292,56 +310,113 @@ class UniversalRuntimeTaskExecutor:
     
     def run(self):
         """运行任务主循环"""
+        sync_mode = "实时同步" if self.sync else "高速执行"
         print(f"\\n🚀 开始{self.robot_name.upper()}运行时执行 (通用运行架构版)")
         print(f"   高频物理循环 + 低频状态切换")
         print(f"   最大时间: {self.max_time}s")
+        print(f"   执行模式: {sync_mode}")
         
         step_count = 0
         last_report_time = time.time()
+        
+        # 实时同步相关变量
+        if self.sync:
+            real_start_time = time.time()
+            expected_sim_time = 0.0
+        
+        last_render_time = 0.0
         
         while self.running:
             if not self.step():
                 break
                 
             step_count += 1
-            
+
+            # 实时同步控制
+            if self.sync:
+                expected_sim_time = self.mj_data.time
+                real_elapsed = time.time() - real_start_time
+                sim_elapsed = expected_sim_time
+                
+                # 如果仿真跑得太快，等待实际时间追上
+                if sim_elapsed > real_elapsed:
+                    sleep_time = sim_elapsed - real_elapsed
+                    if sleep_time > 0:
+                        time.sleep(sleep_time)
+
+            # 检查viewer是否被关闭 - 使用官方API
+            if self.viewer is not None:
+                if not self.viewer.is_running():
+                    print("🎬 查看器已关闭，退出程序")
+                    self.viewer_closed = True
+                    self.running = False
+                    return False
+                
+                # 定期同步显示（降低频率避免性能问题）
+                if self.mj_data.time - last_render_time > (1.0 / self.render_fps):
+                    self.viewer.sync()
+                    last_render_time = self.mj_data.time
+
             # 每秒报告一次进度
             if time.time() - last_report_time > 1.0:
                 elapsed = time.time() - self.start_time
-                print(f"   ⏱️  运行时间: {elapsed:.1f}s, 步数: {step_count}, 当前状态: {self.stm.state_idx+1}/{self.total_states}")
+                sim_time_info = f", 仿真时间: {self.mj_data.time:.1f}s" if self.sync else ""
+                print(f"   ⏱️  运行时间: {elapsed:.1f}s, 步数: {step_count}, 当前状态: {self.stm.state_idx+1}/{self.total_states}{sim_time_info}")
                 last_report_time = time.time()
-        
+
         # 报告结果
         elapsed_time = time.time() - self.start_time
         print(f"\\n📊 {self.robot_name.upper()}运行架构执行完成!")
         print(f"   总时间: {elapsed_time:.2f}s")
+        print(f"   仿真时间: {self.mj_data.time:.2f}s")
         print(f"   总步数: {step_count}")
         print(f"   完成状态: {self.stm.state_idx}/{self.total_states}")
         print(f"   任务成功: {'✅ 是' if self.success else '❌ 否'}")
+        if self.sync:
+            time_ratio = self.mj_data.time / elapsed_time if elapsed_time > 0 else 0
+            print(f"   时间比例: {time_ratio:.2f} (仿真时间/真实时间)")
         
         return self.success
-
-def generate_robot_place_block_model(robot_name):
-    """生成指定机械臂的place_block模型"""
-    sys.path.insert(0, str(project_root / "discoverse/envs"))
-    from make_env import make_env
     
-    xml_path = f"{robot_name}_place_block_mink.xml"
-    try:
-        env = make_env(robot_name, "place_block", xml_path)
-        print(f"🏗️ 生成{robot_name.upper()}模型: {xml_path}")
-        return xml_path
-    except Exception as e:
-        print(f"❌ 生成{robot_name.upper()}模型失败: {e}")
-        # 尝试使用备用名称
-        fallback_xml = f"{robot_name}_place_block.xml"
-        try:
-            env = make_env(robot_name, "place_block", fallback_xml)
-            print(f"🏗️ 使用备用模型: {fallback_xml}")
-            return fallback_xml
-        except Exception as e2:
-            print(f"❌ 备用模型也失败: {e2}")
-            raise e
+    def reset(self):
+        """重置环境和执行器状态"""
+        # 重置到home位置
+        mujoco.mj_resetDataKeyframe(self.mj_model, self.mj_data, self.mj_model.key(0).id)
+        mujoco.mj_forward(self.mj_model, self.mj_data)
+        
+        # 重置状态机
+        self.stm = SimpleStateMachine()
+        self.stm.max_state_cnt = self.total_states
+        
+        # 重置控制状态
+        self.target_control = np.zeros(self.mujoco_ctrl_dim)
+        self.action = np.zeros(self.mujoco_ctrl_dim)
+        self.joint_move_ratio = np.ones(self.mujoco_ctrl_dim)
+        
+        # 重置运行时状态
+        self.running = True
+        self.start_time = time.time()
+        self.success = False
+        self.viewer_closed = False  # 重置viewer关闭标志
+        
+        # 重置延时状态
+        self.current_delay = 0.0
+        self.delay_start_sim_time = None
+        
+        # 重新初始化动作
+        self.action[:] = self.get_current_qpos()[:self.mujoco_ctrl_dim]
+        
+        # 重新初始化mocap target
+        mink.move_mocap_to_frame(self.mj_model, self.mj_data, "target", "endpoint", "site")
+        
+        print("🔄 环境已重置，准备下一轮任务")
+
+def generate_robot_place_block_model(robot_name, task_name):
+    """生成指定机械臂的place_block模型"""
+    xml_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf/tmp", f"{robot_name}_{task_name}.xml")
+    env = make_env(robot_name, task_name, xml_path)
+    print(f"🏗️ 生成{robot_name.upper()}模型: {xml_path}")
+    return xml_path
 
 def setup_scene(model, data):
     """初始化场景"""
@@ -350,62 +425,57 @@ def setup_scene(model, data):
     mujoco.mj_forward(model, data)
     
     # 初始化mocap target
-    try:
-        import mink
-        mink.move_mocap_to_frame(model, data, "target", "endpoint", "site")
-        print("🎯 Mocap target初始化成功")
-    except Exception as e:
-        print(f"⚠️ Mocap初始化失败: {e}")
+    mink.move_mocap_to_frame(model, data, "target", "endpoint", "site")
+    print("🎯 Mocap target初始化成功")
     
     print("🎬 场景初始化完成")
-    try:
-        print(f"   绿色方块位置: {data.body('block_green').xpos}")
-        print(f"   粉色碗位置: {data.body('bowl_pink').xpos}")
-        # 尝试多种可能的末端执行器site名称
-        for site_name in ["endpoint", "end_effector", "eef_site"]:
-            try:
-                print(f"   机械臂末端位置: {data.site(site_name).xpos}")
-                break
-            except:
-                continue
-    except Exception as e:
-        print(f"   ⚠️ 场景信息获取失败: {e}")
+    print(f"   绿色方块位置: {data.body('block_green').xpos}")
+    print(f"   粉色碗位置: {data.body('bowl_pink').xpos}")
+    print(f"   机械臂末端位置: {data.site('endpoint').xpos}")
 
-def create_simple_visualizer(model, data):
+def create_simple_visualizer(mj_model, mj_data):
     """创建MuJoCo内置可视化器"""
     import mujoco.viewer
-    viewer = mujoco.viewer.launch_passive(model, data)
+    viewer = mujoco.viewer.launch_passive(mj_model, mj_data)
+    
+    # 检查是否有相机并设置默认视角
+    if mj_model.ncam > 0:
+        viewer.cam.fixedcamid = 0  # 使用id=0的相机
+        viewer.cam.type = mujoco.mjtCamera.mjCAMERA_FIXED
+        print(f"🎥 使用相机 id=0 作为默认视角 (共{mj_model.ncam}个相机)")
+    else:
+        print("📷 MJCF中未发现相机，使用自由视角")
+    
     print("🎬 MuJoCo内置查看器创建成功")
     return viewer
 
-def main(robot_name="airbot_play"):
-    """主函数 - 通用运行架构版"""
-    print(f"🤖 启动{robot_name.upper()} place_block任务演示 (通用运行架构版)")
+def main(robot_name="airbot_play", task_name="place_block", sync=False):
+    """主函数 - 通用运行架构版，支持循环执行"""
+
+    print(f"Welcome to discoverse {discoverse.__version__} !")
+    print(discoverse.__logo__)
+
+    print(f"🤖 启动{robot_name.upper()} {task_name}任务演示")
     print("=" * 70)
     
-    # 生成模型
-    try:
-        xml_path = generate_robot_place_block_model(robot_name)
-        model = mujoco.MjModel.from_xml_path(xml_path)
-        data = mujoco.MjData(model)
-        print(f"✅ 模型加载成功! (nq={model.nq}, nkey={model.nkey})")
-    except Exception as e:
-        print(f"❌ 模型加载失败: {e}")
-        return
+    xml_path = generate_robot_place_block_model(robot_name, task_name)
+    mj_model = mujoco.MjModel.from_xml_path(xml_path)
+    mj_data = mujoco.MjData(mj_model)
+    print(f"✅ 模型加载成功! (nq={mj_model.nq}, nkey={mj_model.nkey})")
 
     # 初始化场景
-    setup_scene(model, data)
+    setup_scene(mj_model, mj_data)
 
     # 创建查看器
-    viewer = create_simple_visualizer(model, data)
+    viewer = create_simple_visualizer(mj_model, mj_data)
 
     # 创建通用任务
     try:
         task = UniversalTaskBase.create_from_configs(
             robot_name=robot_name,
-            task_name="place_block",
-            mj_model=model,
-            mj_data=data
+            task_name=task_name,
+            mj_model=mj_model,
+            mj_data=mj_data
         )
         print(f"✅ 任务创建成功")
         
@@ -414,26 +484,47 @@ def main(robot_name="airbot_play"):
         
     except Exception as e:
         print(f"❌ 任务创建失败: {e}")
-        import traceback
         traceback.print_exc()
         return
 
     # 创建通用运行时执行器
     try:
-        executor = UniversalRuntimeTaskExecutor(task, viewer, model, data, robot_name)
+        executor = UniversalRuntimeTaskExecutor(task, viewer, mj_model, mj_data, robot_name, sync)
+
+        # 任务循环执行
+        task_count = 0
+        print(f"\\n🔁 开始循环任务执行模式")
+        print(f"   提示: 关闭查看器窗口可退出程序")
         
-        # 运行任务
-        success = executor.run()
+        while True:
+            task_count += 1
+            print(f"\\n{'='*50}")
+            print(f"🎯 第 {task_count} 轮任务开始")
+            print(f"{'='*50}")
+            
+            # 运行任务
+            success = executor.run()
+            
+            if success:
+                print(f"\\n🎉 第 {task_count} 轮任务成功完成!")
+                print(f"   绿色方块已成功放入粉色碗中")
+            else:
+                print(f"\\n⚠️ 第 {task_count} 轮任务未完全成功")
+            
+            # 检查是否需要退出循环
+            if executor.viewer_closed:
+                print(f"\\n🛑 检测到查看器关闭，结束循环")
+                break
+            
+            # 重置环境准备下一轮
+            executor.reset()
         
-        if success:
-            print(f"\\n🎉 {robot_name.upper()}运行架构任务成功完成!")
-            print(f"   绿色方块已成功放入粉色碗中")
-        else:
-            print(f"\\n⚠️ {robot_name.upper()}运行架构任务未完全成功")
+        print(f"\\n📊 任务循环执行总结:")
+        print(f"   总执行轮数: {task_count}")
+        print(f"   退出原因: 查看器关闭")
         
     except Exception as e:
         print(f"❌ 运行时执行失败: {e}")
-        import traceback
         traceback.print_exc()
     finally:
         # 关闭查看器
@@ -447,9 +538,11 @@ def main(robot_name="airbot_play"):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="通用机械臂place_block任务演示")
-    parser.add_argument("--robot", type=str, default="airbot_play", 
-                       choices=["airbot_play", "arx_x5", "arx_l5", "piper"],
+    parser.add_argument("-r", "--robot", type=str, default="airbot_play", 
+                       choices=["airbot_play", "arx_x5", "arx_l5", "piper", "panda", "rm65", "xarm7"],
                        help="选择机械臂类型")
+    parser.add_argument("--sync", action="store_true", 
+                       help="启用实时同步模式（仿真时间与真实时间一致）")
     args = parser.parse_args()
-    
-    main(args.robot)
+
+    main(args.robot, sync=args.sync)

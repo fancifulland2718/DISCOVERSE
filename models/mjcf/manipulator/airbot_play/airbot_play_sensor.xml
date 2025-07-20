@@ -24,9 +24,9 @@
   <jointactuatorfrc name="joint6_torque" joint="joint6" />
   <jointactuatorfrc name="gripper_torque" joint="endright" />
 
-  <framepos name="endpoint_pos" objtype="site" objname="endpoint" reftype="body" refname="arm_base"/>
-  <framequat name="endpoint_quat" objtype="site" objname="endpoint" reftype="body" refname="arm_base"/>
-  <framelinvel name="endpoint_vel" objtype="site" objname="endpoint" reftype="body" refname="arm_base"/>
+  <framepos name="endpoint_pos" objtype="site" objname="endpoint" reftype="site" refname="armbase"/>
+  <framequat name="endpoint_quat" objtype="site" objname="endpoint" reftype="site" refname="armbase"/>
+  <framelinvel name="endpoint_vel" objtype="site" objname="endpoint" reftype="site" refname="armbase"/>
   <gyro name="endpoint_gyro" site="endpoint"/>
   <accelerometer name="endpoint_acc" site="endpoint" />
 

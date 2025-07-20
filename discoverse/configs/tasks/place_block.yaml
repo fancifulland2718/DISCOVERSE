@@ -31,30 +31,39 @@ states:
     primitive: "move_to_object"
     params:
       object_name: "block_green"  # source_object
-      offset: [0, 0, 0.028]  # grasp_height
+      offset: [0, 0, 0]  # grasp_height
       approach_direction: "top_down"
       coordinate_system: "world"
     gripper_state: "open"
     
-  # 状态2: 抓取方块
+  # 状态2: 等待末端位置稳定
+  - name: "wait_grasp"
+    primitive: "move_relative"
+    params:
+      offset: [0, 0, 0]  # 不移动，只是等待
+      keep_orientation: true
+    gripper_state: "open"  # 保持夹爪打开状态
+    delay: 0.35  # 等待0.35秒仿真时间
+
+  # 状态3: 抓取方块
   - name: "grasp_block"
     primitive: "grasp_object"
     params:
       object_name: "block_green"  # source_object
       grasp_type: "pinch"
       force: 0.5
-    gripper_state: "close"
-    
-  # 状态3: 等待抓稳
+    gripper_state: "close"  # 在这里关闭夹爪进行抓取
+
+  # 状态4: 等待抓取稳定
   - name: "stabilize_grasp"
     primitive: "move_relative"
     params:
       offset: [0, 0, 0]  # 不移动，只是等待
       keep_orientation: true
-    gripper_state: "close"
-    delay: 0.35  # 等待0.35秒
-    
-  # 状态4: 提起方块
+    gripper_state: "close"  # 保持夹爪打开状态
+    delay: 0.35  # 等待0.35秒仿真时间
+
+  # 状态5: 提起方块
   - name: "lift_block"
     primitive: "move_relative"
     params:
@@ -63,7 +72,7 @@ states:
       keep_orientation: true
     gripper_state: "close"
     
-  # 状态5: 移动到碗上方
+  # 状态6: 移动到碗上方
   - name: "move_to_bowl_above"
     primitive: "move_to_object"
     params:
@@ -73,7 +82,7 @@ states:
       coordinate_system: "world"
     gripper_state: "close"
     
-  # 状态6: 下降到放置位置
+  # 状态7: 下降到放置位置
   - name: "lower_to_bowl"
     primitive: "move_relative"
     params:
@@ -82,14 +91,14 @@ states:
       keep_orientation: true
     gripper_state: "close"
     
-  # 状态7: 释放方块
+  # 状态8: 释放方块
   - name: "release_block"
     primitive: "release_object"
     params:
       release_type: "gentle"
     gripper_state: "open"
     
-  # 状态8: 抬升末端执行器
+  # 状态9: 抬升末端执行器
   - name: "retreat_upward"
     primitive: "move_relative"
     params:

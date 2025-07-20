@@ -5,5 +5,9 @@
   <jointpos name="joint4_pos" joint="joint4"/>
   <jointpos name="joint5_pos" joint="joint5"/>
   <jointpos name="joint6_pos" joint="joint6"/>
-  <jointpos name="gripper" joint="joint7"/>
+  <jointpos name="gripper_pos" joint="joint7"/>
+
+  <framepos name="endpoint_pos" objtype="site" objname="endpoint" reftype="site" refname="armbase"/>
+  <framequat name="endpoint_quat" objtype="site" objname="endpoint" reftype="site" refname="armbase"/>
+
 </mujocoinclude>

@@ -33,10 +33,10 @@
         <position ctrlrange="-3.14 3.14"/>
       </default>
       <default class='finger1'>
-        <joint axis='0 1 0' range="-0.04 0" type='slide' damping="0.5" frictionloss="15"/>
+        <joint axis='0 1 0' range="-0.04 0" type='slide' damping="2"/>
       </default>
       <default class='finger2'>
-        <joint axis='0 1 0' range="0 0.04" type='slide' damping="0.5" frictionloss="15"/>
+        <joint axis='0 1 0' range="0 0.04" type='slide' damping="2"/>
       </default>
     </default>
     <site size="0.001" group="3"/>

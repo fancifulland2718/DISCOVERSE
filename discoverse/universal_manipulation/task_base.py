@@ -21,8 +21,8 @@ class UniversalTaskBase:
     def __init__(self, 
                  robot_config_path: str,
                  task_config_path: str,
-                 mj_model,
-                 mj_data,
+                 mj_model: mujoco.MjModel,
+                 mj_data: mujoco.MjData,
                  robot_interface: Optional[RobotInterface] = None,
                  primitive_registry: Optional[PrimitiveRegistry] = None):
         """
@@ -74,7 +74,7 @@ class UniversalTaskBase:
         elif robot_name == "airbot_play":
             from .robot_interface import AirbotRobotInterface
             return AirbotRobotInterface(mj_model, mj_data)
-        elif robot_name in ["arx_x5", "arx_l5", "piper"]:
+        elif robot_name in ["arx_x5", "arx_l5", "piper", "ur5e", "rm65", "xarm7"]:
             # 对于新支持的机械臂，使用通用接口
             from .robot_interface import GenericRobotInterface
             return GenericRobotInterface(self.robot_config, mj_model, mj_data)

@@ -1,7 +1,9 @@
 <mujocoinclude>
 
+  <option integrator="implicitfast"/>
+
   <default>
-    <default class="robot">
+    <default class="rm65">
       <default class="upper_limb">
         <joint damping="20.0" />
         <position kp="500.0" kv="5.0" forcerange="-150.0 150.0" />
@@ -11,14 +13,14 @@
         <position kp="350.0" kv="2.0" forcerange="-100.0 100.0" />
       </default>
       <default class="gripper">
-        <joint armature="0.005" damping="0.5" />
-        <position kp="100.0" kv="0.5" forcerange="-5.0 5.0" />
+        <joint damping="0.2" />
+        <position kp="300.0" kv="0.5" forcerange="-100.0 100.0" />
       </default>
       <default class="visual">
         <geom material="visualgeom" contype="0" conaffinity="0" group="2" />
       </default>
       <default class="collision">
-        <geom material="collision_material" condim="3" contype="0" conaffinity="1" priority="1" group="3" solref="0.005 1" friction="1 0.01 0.01" />
+        <geom material="collision_material" condim="3" contype="0" conaffinity="1" priority="1" group="3" solimp="0.99 0.995 0.01" solref="0.005 1" friction="1 0.005 0.0001" />
         <equality solimp="0.99 0.999 1e-05" solref="0.005 1" />
       </default>
     </default>
@@ -30,9 +32,9 @@
     <material name="camera_black" rgba="0.149 0.149 0.149 1" />
     <material name="default_material" rgba="0.7 0.7 0.7 1" />
     <material name="collision_material" rgba="1.0 0.28 0.1 0.9" />
-    <material name="base_link_Material-橡胶_001-material" specular="0.4000000000000001" shininess="1.0" rgba="0.00000000 0.00000000 0.00000000 1.0" />
-    <material name="base_link_Material-塑胶_001-material" specular="0.4000000000000001" shininess="1.0" rgba="0.00000000 0.20000000 0.63529412 1.0" />
-    <material name="base_link_Material-外壳_001-material" specular="0.4000000000000001" shininess="1.0" rgba="0.98823529 0.98823529 0.98823529 1.0" />
+    <material name="base_link_Material-橡胶_001-material" specular="0.4" shininess="1.0" rgba="0 0 0 1.0" />
+    <material name="base_link_Material-塑胶_001-material" specular="0.4" shininess="1.0" rgba="0 0.2 0.63529412 1" />
+    <material name="base_link_Material-外壳_001-material" specular="0.4" shininess="1.0" rgba="0.98823529 0.98823529 0.98823529 1.0" />
     <mesh name="base_link.STL" file="realman_rm65/collision/base_link.STL" />
     <mesh name="link1.STL" file="realman_rm65/collision/link1.STL" />
     <mesh name="link2.STL" file="realman_rm65/collision/link2.STL" />

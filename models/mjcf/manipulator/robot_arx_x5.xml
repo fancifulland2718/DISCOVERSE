@@ -3,6 +3,7 @@
   <option integrator="implicitfast" />
   <include file="../scene/skybox.xml"/>
   <include file="arx_x5/arx_x5_dependencies.xml"/>
+  <include file="arx_x5/arx_x5_appendix.xml"/>
 
   <worldbody>
     <body name="arx_x5_pose" pos="0 0 0.78" euler="0 0 0">

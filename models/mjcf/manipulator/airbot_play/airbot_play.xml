@@ -44,7 +44,7 @@
                 <geom type="box" pos="0 0 -0.07" size="0.025 0.08 0.015" rgba="1 0 0 1" class="collision"/>
                 <geom type="mesh" material="Paint_Matte_Black" mesh="link6" class="visual"/>
                 <geom type="mesh" material="Paint_Matte_Black" mesh="camera_stand" class="visual"/>
-                <site name="endpoint" pos='0 0 0' euler="0 -1.5708 0"/>
+                <site name="endpoint" pos='0 0 0.015' euler="0 -1.5708 0"/>
                 <body name="right" pos="0 0 0">
                   <inertial pos="-0.048742 0.0096369 0.00044322" quat="0.757393 0.0415116 0.0313705 0.650883" mass="0.0626" diaginertia="2.79281e-05 1.90181e-05 1.21737e-05"/>
                   <joint name="endright" class='finger2'/>

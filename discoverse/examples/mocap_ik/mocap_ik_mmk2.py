@@ -7,6 +7,7 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
+import discoverse
 from discoverse.examples.mocap_ik.mocap_ik_utils import \
     mj_quat2mat, \
     add_mocup_body_to_mjcf, \
@@ -24,6 +25,8 @@ if __name__ == "__main__":
     该程序创建一个MMK2机器人模型的MuJoCo仿真环境，添加运动捕捉(mocap)目标，
     并使用逆运动学(IK)控制机器人的双臂跟踪目标位置和姿态。
     """
+    print(f"Welcome to discoverse {discoverse.__version__} !")
+    print(discoverse.__logo__)
 
     parser = argparse.ArgumentParser(
         description="Airbot Play 机器人MuJoCo仿真主程序\n"
@@ -203,7 +206,7 @@ if __name__ == "__main__":
                 viewer.sync()
                 
                 # 计算下一步开始前需要等待的时间，保证帧率稳定
-                time_until_next_step = render_gap * mj_model.opt.timestep - (time.time() - step_start)
+                time_until_next_step = (1. / render_fps) - (time.time() - step_start)
                 if time_until_next_step > 0:
                     time.sleep(time_until_next_step)
 

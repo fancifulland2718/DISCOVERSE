@@ -1,5 +1,6 @@
 <mujoco model="iiwa14">
   <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/" autolimits="true"/>
+  <option integrator="implicitfast" />
 
   <include file="../scene/skybox.xml"/>
   <include file="kuka_iiwa_14/iiwa14_dependencies.xml"/>

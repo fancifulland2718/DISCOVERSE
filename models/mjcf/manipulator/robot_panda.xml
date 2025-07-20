@@ -1,5 +1,6 @@
 <mujoco model="panda">
   <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/" autolimits="true"/>
+  <option integrator="implicitfast" />
 
   <include file="../scene/skybox.xml"/>
   <include file="franka_emika_panda/panda_dependencies.xml"/>

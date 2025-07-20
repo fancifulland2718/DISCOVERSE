@@ -1,0 +1,113 @@
+# ============== place_block 任务配置 ==============
+# 将绿色方块放入粉色碗中
+
+task_name: "place_block"
+description: "将绿色方块抓取并放入粉色碗中"
+
+# ============== 运行时参数 ==============
+runtime_parameters:
+  source_object: "block_green"       # 源物体
+  target_location: "bowl_pink"       # 目标位置
+  approach_height: 0.1               # 接近高度
+  grasp_height: 0.028                # 抓取高度 
+  lift_height: 0.07                  # 提升高度
+  place_height: 0.13                 # 放置高度
+  final_height: 0.04                 # 最终下降高度
+
+# ============== 状态序列 ==============
+states:
+  # 状态0: 移动到方块上方
+  - name: "approach_block_above"
+    primitive: "move_to_object"
+    params:
+      object_name: "block_green"  # source_object
+      offset: [0, 0, 0.05]  # approach_height - 降低到5cm
+      approach_direction: "top_down"
+      coordinate_system: "world"
+    gripper_state: "open"
+    
+  # 状态1: 下降到抓取位置
+  - name: "approach_block_grasp"
+    primitive: "move_to_object"
+    params:
+      object_name: "block_green"  # source_object
+      offset: [0, 0, 0.028]  # grasp_height
+      approach_direction: "top_down"
+      coordinate_system: "world"
+    gripper_state: "open"
+    
+  # 状态2: 抓取方块
+  - name: "grasp_block"
+    primitive: "grasp_object"
+    params:
+      object_name: "block_green"  # source_object
+      grasp_type: "pinch"
+      force: 0.5
+    gripper_state: "close"
+    
+  # 状态3: 等待抓稳
+  - name: "stabilize_grasp"
+    primitive: "move_relative"
+    params:
+      offset: [0, 0, 0]  # 不移动，只是等待
+      keep_orientation: true
+    gripper_state: "close"
+    delay: 0.35  # 等待0.35秒
+    
+  # 状态4: 提起方块
+  - name: "lift_block"
+    primitive: "move_relative"
+    params:
+      offset: [0, 0, 0.07]  # lift_height
+      coordinate_system: "world"
+      keep_orientation: true
+    gripper_state: "close"
+    
+  # 状态5: 移动到碗上方
+  - name: "move_to_bowl_above"
+    primitive: "move_to_object"
+    params:
+      object_name: "bowl_pink"  # target_location
+      offset: [0, 0, 0.13]  # place_height
+      approach_direction: "top_down"
+      coordinate_system: "world"
+    gripper_state: "close"
+    
+  # 状态6: 下降到放置位置
+  - name: "lower_to_bowl"
+    primitive: "move_relative"
+    params:
+      offset: [0, 0, -0.04]  # -final_height
+      coordinate_system: "world"
+      keep_orientation: true
+    gripper_state: "close"
+    
+  # 状态7: 释放方块
+  - name: "release_block"
+    primitive: "release_object"
+    params:
+      release_type: "gentle"
+    gripper_state: "open"
+    
+  # 状态8: 抬升末端执行器
+  - name: "retreat_upward"
+    primitive: "move_relative"
+    params:
+      offset: [0, 0, 0.05]
+      coordinate_system: "world"
+      keep_orientation: true
+    gripper_state: "open"
+
+# ============== 成功条件 ==============
+success_condition:
+  type: "object_in_target"
+  params:
+    source_object: "block_green"
+    target_location: "bowl_pink"
+    tolerance: 0.02  # 2cm容差
+
+# ============== 执行参数 ==============
+execution:
+  max_time: 30.0        # 最大执行时间(秒)
+  state_timeout: 10.0   # 单个状态超时时间(秒)
+  max_retries: 2        # 每个状态最大重试次数 

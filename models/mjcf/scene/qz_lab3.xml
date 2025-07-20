@@ -34,6 +34,16 @@
       <geom size="0.02 0.02 0.34" pos="-0.55  0.25 0.35" type="box" contype="0" conaffinity="0" rgba="0.15 0.15 0.15 1" />
       <geom size="0.02 0.02 0.34" pos="-0.55 -0.25 0.35" type="box" contype="0" conaffinity="0" rgba="0.15 0.15 0.15 1" />
     </body>
+
+    <body name="target" pos="0 0 0" quat="1 0 0 0" mocap="true">
+      <inertial pos="0 0 0" mass="1e-4" diaginertia="1e-9 1e-9 1e-9"/>
+      <site name="target_site" size='0.001' type='sphere'/>
+      <geom name="target_box" type="box" size="0.05 0.05 0.05" density="0" contype="0" conaffinity="0" rgba="0.3 0.6 0.3 0.2"/>
+      <geom type="cylinder" pos="0.05 0 0" euler="0 1.5708 0" size=".01 0.05" density="0" contype="0" conaffinity="0" rgba="1 0 0 .2"/>
+      <geom type="cylinder" pos="0 0.05 0" euler="1.5708 0 0" size=".01 0.05" density="0" contype="0" conaffinity="0" rgba="0 1 0 .2"/>
+      <geom type="cylinder" pos="0 0 0.05" euler="0 0 0"      size=".01 0.05" density="0" contype="0" conaffinity="0" rgba="0 0 1 .2"/>
+    </body>
+
     <!-- <body name="front_wall" pos="1.1 0.25 0">
       <geom size="0.015 1 1" pos="0 0 1" type="box" rgba="0 0 0 1"/>
     </body> -->

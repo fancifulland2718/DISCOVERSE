@@ -1,5 +1,6 @@
 <mujoco model="arx_l5">
   <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/" autolimits="true"/>
+  <option integrator="implicitfast" />
 
   <include file="../scene/skybox.xml"/>
   <include file="arx_l5/arx_l5_dependencies.xml"/>

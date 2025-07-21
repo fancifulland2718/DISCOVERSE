@@ -84,7 +84,7 @@
                   <joint name="joint7" class="joint3"/>
                   <geom class="visual" mesh="link_7"/>
                   <geom class="collision" size="0.06" pos="0 0 0.001"/>
-                  <site name="endpoint" pos="0 0 0.205" quat="-1 0 1 0"/>
+                  <site name="endpoint" pos="0 0 0.2" quat="-1 0 1 0"/>
 
                   <body name="2f85_base_mount" pos="0 0 0.052" quat="1 0 0 -1">
                     <geom class="visual" mesh="2f85_base_mount" material="2f85_black"/>

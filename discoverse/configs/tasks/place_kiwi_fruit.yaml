@@ -1,0 +1,27 @@
+# ============== place_kiwi_fruit 任务配置 ==============
+# 继承自place_object模板，将猕猴桃放入花碗中
+
+extends: "templates/place_object.yaml"
+
+task_name: "place_kiwi_fruit"
+description: "将猕猴桃抓取并放入花碗中"
+
+# ============== 成功条件检查覆盖 ==============
+success_check:
+  method: "simple"
+  conditions:
+    - type: "distance_2d"
+      object1: "kiwi"
+      object2: "flower_bowl" 
+      threshold: 0.04  # 更严格的4cm容差
+      description: "猕猴桃在花碗的4cm范围内"
+
+# ============== 运行时参数覆盖 ==============
+runtime_parameters:
+  source_object: "kiwi"                # 猕猴桃
+  target_location: "flower_bowl"       # 花碗
+  approach_height: 0.1                 # 接近高度
+  grasp_height: 0.035                  # 猕猴桃抓取高度
+  lift_height: 0.15                    # 提升高度
+  place_height: 0.13                   # 放置高度
+  final_height: 0.05                   # 最终下降高度

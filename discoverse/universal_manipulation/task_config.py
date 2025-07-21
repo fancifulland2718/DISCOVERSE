@@ -27,6 +27,21 @@ class TaskConfigLoader:
         if config_path:
             self.load_config(config_path)
     
+    @classmethod
+    def from_dict(cls, config_dict: Dict[str, Any]) -> 'TaskConfigLoader':
+        """从字典创建配置加载器
+        
+        Args:
+            config_dict: 配置字典
+            
+        Returns:
+            配置加载器实例
+        """
+        loader = cls()
+        loader.config = config_dict
+        loader._validate_config()
+        return loader
+    
     def load_config(self, config_path: str) -> Dict[str, Any]:
         """
         加载任务配置文件
@@ -45,8 +60,18 @@ class TaskConfigLoader:
             raise FileNotFoundError(f"Task config file not found: {config_path}")
         
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
-                self.config = yaml.safe_load(f)
+            # 尝试使用模板解析
+            try:
+                from discoverse.examples.universal_tasks.universal_task_runtime import load_and_resolve_config, replace_variables
+                
+                # 使用模板化配置解析
+                self.config = load_and_resolve_config(config_path)
+                self.config = replace_variables(self.config)
+                
+            except ImportError:
+                # 回退到普通YAML加载
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    self.config = yaml.safe_load(f)
             
             # 验证配置文件
             self._validate_config()
@@ -60,19 +85,23 @@ class TaskConfigLoader:
         """验证任务配置文件的必要字段"""
         required_fields = [
             'task_name',
-            'description',
-            'states'
+            'description'
         ]
         
         for field in required_fields:
             if field not in self.config:
                 raise ValueError(f"Missing required field in task config: {field}")
         
-        # 验证状态配置
-        if not isinstance(self.config['states'], list) or len(self.config['states']) == 0:
+        # 检查状态字段（支持states或task_states）
+        if 'states' not in self.config and 'task_states' not in self.config:
+            raise ValueError("Task must have 'states' or 'task_states' field")
+        
+        # 验证状态配置（优先使用states，然后是task_states）
+        states = self.config.get('states', self.config.get('task_states', []))
+        if not isinstance(states, list) or len(states) == 0:
             raise ValueError("Task must have at least one state")
         
-        for i, state in enumerate(self.config['states']):
+        for i, state in enumerate(states):
             if 'name' not in state:
                 raise ValueError(f"State {i} missing required field: name")
             if 'primitive' not in state:
@@ -89,26 +118,36 @@ class TaskConfigLoader:
     
     def resolve_parameters(self, value: Any) -> Any:
         """
-        解析参数，支持运行时参数替换
+        解析参数化的值，支持 {param} 和 ${param} 格式
         
         Args:
-            value: 待解析的值
+            value: 要解析的值
             
         Returns:
             解析后的值
         """
         if isinstance(value, str):
-            # 处理参数占位符 {param_name}
-            pattern = r'\{([^}]+)\}'
-            matches = re.findall(pattern, value)
+            # 处理 ${param} 格式的参数替换
+            import re
             
-            for match in matches:
-                if match in self.runtime_params:
-                    value = value.replace(f'{{{match}}}', str(self.runtime_params[match]))
-                elif match in self.config.get('parameters', {}):
-                    # 使用配置文件中的默认参数
-                    default_value = self.config['parameters'][match]
-                    value = value.replace(f'{{{match}}}', str(default_value))
+            def replace_param(match):
+                param_name = match.group(1)
+                # 优先使用运行时参数
+                if param_name in self.runtime_params:
+                    return str(self.runtime_params[param_name])
+                # 然后使用配置文件中的运行时参数
+                elif 'runtime_parameters' in self.config and param_name in self.config['runtime_parameters']:
+                    return str(self.config['runtime_parameters'][param_name])
+                # 最后使用旧格式的parameters
+                elif param_name in self.config.get('parameters', {}):
+                    return str(self.config['parameters'][param_name])
+                # 如果找不到参数，保持原样
+                return match.group(0)
+            
+            # 替换 ${param} 格式
+            value = re.sub(r'\$\{([^}]+)\}', replace_param, value)
+            # 替换 {param} 格式
+            value = re.sub(r'\{([^}]+)\}', replace_param, value)
             
         elif isinstance(value, dict):
             return {k: self.resolve_parameters(v) for k, v in value.items()}
@@ -126,7 +165,10 @@ class TaskConfigLoader:
         """
         resolved_states = []
         
-        for state in self.config['states']:
+        # 获取状态列表（优先使用states，然后是task_states）
+        states = self.config.get('states', self.config.get('task_states', []))
+        
+        for state in states:
             resolved_state = self.resolve_parameters(state.copy())
             resolved_states.append(resolved_state)
         

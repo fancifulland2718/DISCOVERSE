@@ -37,25 +37,44 @@ class UniversalTaskBase:
             robot_interface: 机械臂接口（可选，会自动创建）
             primitive_registry: 原语注册器（可选，使用全局注册器）
         """
-        # 加载配置
+        # 加载配置 - 使用模板化配置解析
         self.robot_config = RobotConfigLoader(robot_config_path)
-        self.task_config = TaskConfigLoader(task_config_path)
+        
+        # 任务配置加载
+        if task_config_path is None:
+            # 如果没有提供路径，稍后会手动设置task_config
+            self.task_config = None
+        else:
+            # 使用新的配置解析方法
+            try:
+                from discoverse.examples.universal_tasks.universal_task_runtime import load_and_resolve_config
+                resolved_config = load_and_resolve_config(task_config_path)
+                self.task_config = TaskConfigLoader.from_dict(resolved_config)
+            except ImportError:
+                # fallback to original method
+                self.task_config = TaskConfigLoader(task_config_path)
         
         # 创建机械臂接口
         if robot_interface is None:
             robot_interface = self._create_robot_interface(mj_model, mj_data)
         self.robot_interface = robot_interface
         
-        # 创建任务执行器
+        # 创建任务执行器 (如果task_config可用)
+        self.executor = None
+        if self.task_config is not None:
+            self._create_executor(primitive_registry)
+        
+        # 存储模型引用
+        self.mj_model = mj_model
+        self.mj_data = mj_data
+    
+    def _create_executor(self, primitive_registry=None):
+        """创建任务执行器"""
         self.executor = UniversalTaskExecutor(
             robot_interface=self.robot_interface,
             task_config=self.task_config,
             primitive_registry=primitive_registry
         )
-        
-        # 存储模型引用
-        self.mj_model = mj_model
-        self.mj_data = mj_data
     
     def _create_robot_interface(self, mj_model: mujoco.MjModel, mj_data: mujoco.MjData):
         """

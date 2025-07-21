@@ -1,0 +1,60 @@
+# ============== place_coffeecup 任务配置 ==============
+# 继承自place_object模板，将咖啡杯放到白色盘子上
+
+extends: "templates/place_object.yaml"
+
+task_name: "place_coffeecup"
+description: "将咖啡杯抓取并放到白色盘子上"
+
+# ============== 成功条件检查覆盖 ==============
+success_check:
+  method: "combined"
+  operator: "and"
+  conditions:
+    - type: "distance_2d"
+      object1: "coffeecup_white"
+      object2: "plate_white" 
+      threshold: 0.03
+      description: "咖啡杯在盘子的2cm范围内"
+    - type: "orientation"
+      object: "coffeecup_white"
+      axis: "z"
+      direction: "up"
+      threshold: 0.95
+      description: "咖啡杯必须保持直立"
+
+# ============== 运行时参数覆盖 ==============
+runtime_parameters:
+  source_object: "coffeecup_white"     # 白色咖啡杯
+  target_location: "plate_white"       # 白色盘子
+  approach_height: 0.1                 # 接近高度
+  grasp_height: 0.05                   # 杯把抓取高度
+  release_bias_x : 0.05                # 放置时的X偏移
+  release_bias_y : 0.0                 # 放置时的Y偏移
+  lift_height: 0.12                    # 提升高度
+  place_height: 0.11                   # 放置高度
+  final_height: 0.08                   # 最终下降高度
+  grasp_force: 0.7                     # 稍大的抓取力度
+  stabilize_time: 0.5                  # 更长的稳定时间
+
+# ============== 状态序列覆盖（针对杯把抓取的特殊处理）==============
+states:
+  # 状态0: 移动到咖啡杯前方（杯把方向）
+  - name: "approach_cup_front"
+    primitive: "move_to_object"
+    params:
+      object_name: "coffeecup_white"
+      offset: [0.1, 0, 0.1]  # X方向(杯把方向)和Z方向偏移
+      approach_direction: "handle"
+      coordinate_system: "world"
+    gripper_state: "open"
+
+  # 状态1: 移动到杯把位置
+  - name: "approach_handle"
+    primitive: "move_to_object"
+    params:
+      object_name: "coffeecup_white"
+      offset: [0.045, 0, 0.05]  # 杯把的具体位置
+      approach_direction: "handle"
+      coordinate_system: "world"
+    gripper_state: "open"

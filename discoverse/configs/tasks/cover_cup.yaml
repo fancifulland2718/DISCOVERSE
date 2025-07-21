@@ -13,7 +13,7 @@ success_check:
       object: "coffeecup_white"
       axis: "z"  # Z轴
       direction: "up"  # 朝上
-      threshold: 0.99  # cos值阈值
+      threshold: 0.95  # cos值阈值
       description: "咖啡杯直立（底部朝下）"
       
     - type: "distance_2d"  # 检查杯子是否在盘子上

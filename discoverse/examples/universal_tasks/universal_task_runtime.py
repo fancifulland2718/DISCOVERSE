@@ -1,53 +1,232 @@
+#!/usr/bin/env python3
+"""
+Universal Task Runtime - 改进版本
+
+集成了以下改进：
+1. 使用统一的utils模块
+2. 简化的错误处理
+3. 模板化配置支持
+4. CICD测试集成
+"""
+
 import os
+import sys
 import time
+import argparse
 import traceback
+from pathlib import Path
 
 import mink
 import mujoco
 import numpy as np
+import yaml
 
 import discoverse
 from discoverse.envs import make_env
 from discoverse import DISCOVERSE_ASSETS_DIR
 from discoverse.universal_manipulation import UniversalTaskBase
-from discoverse.utils import SimpleStateMachine, step_func, get_body_tmat
+from discoverse.universal_manipulation.utils import (
+    SimpleStateMachine, step_func, get_body_tmat,
+    validate_mujoco_object, calculate_distance
+)
+
+
+def load_and_resolve_config(config_path: str) -> dict:
+    """加载并解析配置文件（支持模板继承）
+    
+    Args:
+        config_path: 配置文件路径
+        
+    Returns:
+        解析后的配置字典
+    """
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+    
+    # 检查是否有模板继承
+    if 'extends' in config:
+        template_path = config['extends']
+        if not os.path.isabs(template_path):
+            # 相对路径，相对于当前配置文件
+            base_dir = os.path.dirname(config_path)
+            template_path = os.path.join(base_dir, template_path)
+        
+        print(f"📄 加载模板: {template_path}")
+        
+        # 递归加载模板
+        template_config = load_and_resolve_config(template_path)
+        
+        # 合并配置（当前配置覆盖模板）
+        merged_config = merge_configs(template_config, config)
+        return merged_config
+    
+    return config
+
+
+def merge_configs(template: dict, override: dict) -> dict:
+    """合并配置文件（深度合并，支持状态数组的智能合并）
+    
+    Args:
+        template: 模板配置
+        override: 覆盖配置
+        
+    Returns:
+        合并后的配置
+    """
+    result = template.copy()
+    
+    for key, value in override.items():
+        if key == 'extends':
+            continue  # 跳过extends字段
+            
+        if key == 'states' and isinstance(result.get(key), list) and isinstance(value, list):
+            # 特殊处理states数组：按索引合并
+            result[key] = merge_states_array(result[key], value)
+        elif key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = merge_configs(result[key], value)
+        else:
+            result[key] = value
+    
+    return result
+
+
+def merge_states_array(template_states: list, override_states: list) -> list:
+    """合并状态数组（按索引覆盖）
+    
+    Args:
+        template_states: 模板中的状态数组
+        override_states: 覆盖配置中的状态数组
+        
+    Returns:
+        合并后的状态数组
+    """
+    # 从模板开始
+    result = template_states.copy()
+    
+    # 按索引覆盖
+    for i, override_state in enumerate(override_states):
+        if i < len(result):
+            # 覆盖已有的状态
+            result[i] = override_state
+        else:
+            # 添加新状态
+            result.append(override_state)
+    
+    return result
+
+
+def replace_variables(config: dict) -> dict:
+    """替换配置中的变量引用
+    
+    Args:
+        config: 原始配置
+        
+    Returns:
+        替换变量后的配置
+    """
+    import re
+    import json
+    
+    # 获取运行时参数
+    runtime_params = config.get('runtime_parameters', {})
+    
+    # 将配置转换为JSON字符串进行替换
+    config_str = json.dumps(config, ensure_ascii=False)
+    
+    # 替换${variable}格式的变量
+    for key, value in runtime_params.items():
+        # 1. 替换带引号的变量（保持数据类型）
+        quoted_pattern = f"\"${{{key}}}\""
+        if isinstance(value, (int, float)):
+            quoted_replacement = str(value)  # 数值不加引号
+        else:
+            quoted_replacement = f'"{value}"'  # 字符串加引号
+        config_str = config_str.replace(quoted_pattern, quoted_replacement)
+        
+        # 2. 替换字符串内的变量（如description中的变量）
+        inline_pattern = f"${{{key}}}"
+        inline_replacement = str(value)  # 都转为字符串
+        config_str = config_str.replace(inline_pattern, inline_replacement)
+    
+    # 转换回字典
+    return json.loads(config_str)
+
+
+def validate_task_config(config: dict, robot_name: str) -> bool:
+    """验证任务配置
+    
+    Args:
+        config: 任务配置
+        robot_name: 机械臂名称
+        
+    Returns:
+        是否有效
+    """
+    # 检查必需字段（兼容新旧格式）
+    required_fields = ['task_name', 'description']
+    
+    # 检查状态字段（支持states或task_states）
+    if 'states' not in config and 'task_states' not in config:
+        print(f"❌ 配置缺少状态字段: states 或 task_states")
+        return False
+    
+    for field in required_fields:
+        if field not in config:
+            print(f"❌ 配置缺少必需字段: {field}")
+            return False
+    
+    # 检查机械臂兼容性
+    if 'task_meta' in config and 'compatibility' in config['task_meta']:
+        compatible_robots = config['task_meta']['compatibility'].get('robots', [])
+        if robot_name not in compatible_robots:
+            print(f"⚠️ 机械臂 {robot_name} 可能不兼容此任务")
+            print(f"   支持的机械臂: {compatible_robots}")
+    
+    return True
 
 class UniversalRuntimeTaskExecutor:
-    """通用运行时任务执行器 - 采用高频循环架构，支持多种机械臂"""
+    """通用运行时任务执行器 - 改进版本
+    
+    集成了utils模块、简化的错误处理、模板化配置支持
+    """
 
-    def __init__(self, task: UniversalTaskBase, viewer, mj_model: mujoco.MjModel, mj_data: mujoco.MjData, robot_name: str, sync: bool = False):
-        """
-        初始化运行时执行器
+    def __init__(self, task: UniversalTaskBase, viewer, mj_model: mujoco.MjModel, 
+                 mj_data: mujoco.MjData, robot_name: str, sync: bool = False):
+        """初始化运行时执行器
         
         Args:
             task: UniversalTaskBase任务实例
             viewer: MuJoCo viewer
-            model: MuJoCo模型
-            data: MuJoCo数据
+            mj_model: MuJoCo模型
+            mj_data: MuJoCo数据
             robot_name: 机械臂名称
-            sync: 是否启用实时同步（仿真时间与真实时间一致）
+            sync: 是否启用实时同步
         """
         self.task = task
         self.viewer = viewer
         self.mj_model = mj_model
         self.mj_data = mj_data
         self.robot_name = robot_name
-        self.sync = sync  # 实时同步选项
+        self.sync = sync
         
         # 时间和频率控制
-        self.sim_timestep = mj_model.opt.timestep  # 仿真时间步长
+        self.sim_timestep = mj_model.opt.timestep
         self.render_fps = 60
         
-        # 任务配置
-        self.resolved_states = task.task_config.get_resolved_states()
-        self.total_states = len(self.resolved_states)
+        # 任务配置 - 支持模板化配置
+        try:
+            self.resolved_states = task.task_config.get_resolved_states()
+            self.total_states = len(self.resolved_states)
+        except Exception as e:
+            print(f"❌ 任务配置解析失败: {e}")
+            raise
         
         # 状态机
         self.stm = SimpleStateMachine()
         self.stm.max_state_cnt = self.total_states
         
-        # 控制状态 - 使用MuJoCo实际控制器数量
-        self.mujoco_ctrl_dim = mj_model.nu  # MuJoCo控制器维度
+        # 控制状态
+        self.mujoco_ctrl_dim = mj_model.nu
         self.target_control = np.zeros(self.mujoco_ctrl_dim)
         self.action = np.zeros(self.mujoco_ctrl_dim)
         self.move_speed = 0.75  # 控制速度
@@ -112,7 +291,17 @@ class UniversalRuntimeTaskExecutor:
             if primitive == "move_to_object":
                 # 使用原语计算目标位置
                 object_name = params.get("object_name", "")
-                offset = np.array(params.get("offset", [0, 0, 0]))
+                offset = params.get("offset", [0, 0, 0])
+                
+                # 确保offset是数字数组
+                if isinstance(offset, list):
+                    try:
+                        offset = np.array([float(x) for x in offset])
+                    except:
+                        print(f"   ❌ offset转换失败: {offset}")
+                        return False
+                else:
+                    offset = np.array(offset)
                 
                 if object_name:
                     # 获取物体位置
@@ -145,7 +334,17 @@ class UniversalRuntimeTaskExecutor:
                         
             elif primitive == "move_relative":
                 # 相对移动
-                offset = np.array(params.get("offset", [0, 0, 0]))
+                offset = params.get("offset", [0, 0, 0])
+                
+                # 确保offset是数字数组
+                if isinstance(offset, list):
+                    try:
+                        offset = np.array([float(x) for x in offset])
+                    except:
+                        print(f"   ❌ offset转换失败: {offset}")
+                        return False
+                else:
+                    offset = np.array(offset)
                 
                 # 获取当前位置
                 site_name = self.task.robot_interface.robot_config.end_effector_site
@@ -207,6 +406,12 @@ class UniversalRuntimeTaskExecutor:
                     
                     # 获取延时配置
                     self.current_delay = state_config.get("delay", 0.0)
+                    if isinstance(self.current_delay, str):
+                        try:
+                            self.current_delay = float(self.current_delay)
+                        except:
+                            self.current_delay = 0.0
+                            
                     if self.current_delay > 0:
                         print(f"   ⏱️  状态延时: {self.current_delay}s")
                     
@@ -298,18 +503,17 @@ class UniversalRuntimeTaskExecutor:
             print(f"   ⚠️ Mocap设置失败: {e}")
     
     def check_task_success(self):
-        """检查任务成功条件 - 根据任务类型动态判断"""
+        """检查任务成功条件 - 简化版本"""
         print(f"\\n🔍 开始任务成功检查...")
+        
+        # 使用统一的成功检查接口
         try:
             success = self.task.check_success()
-            if success:
-                print(f"   ✅ 任务成功检查通过！")
-            else:
-                print(f"   ❌ 任务成功检查未通过")
+            status = "✅ 通过" if success else "❌ 未通过"
+            print(f"   {status}")
             return success
         except Exception as e:
-            print(f"   ⚠️ 任务成功检查失败: {e}")
-            traceback.print_exc()
+            print(f"   💥 检查异常: {e}")
             return False
     
     def run(self):
@@ -431,26 +635,6 @@ def setup_scene(model, data, task_name):
     mink.move_mocap_to_frame(model, data, "target", "endpoint", "site")
     
     print("🎬 场景初始化完成")
-    
-    # 根据任务类型显示对象位置
-    if task_name == "place_block":
-        try:
-            print(f"   绿色方块位置: {data.body('block_green').xpos}")
-            print(f"   粉色碗位置: {data.body('bowl_pink').xpos}")
-        except:
-            print("   ⚠️ 无法获取place_block对象位置")
-    elif task_name == "cover_cup":
-        try:
-            print(f"   咖啡杯位置: {data.body('coffeecup_white').xpos}")
-            print(f"   盘子位置: {data.body('plate_white').xpos}")
-            print(f"   杯盖位置: {data.body('cup_lid').xpos}")
-        except:
-            print("   ⚠️ 无法获取cover_cup对象位置")
-    
-    try:
-        print(f"   机械臂末端位置: {data.site('endpoint').xpos}")
-    except:
-        print("   ⚠️ 无法获取机械臂末端位置")
 
 def create_simple_visualizer(mj_model, mj_data):
     """创建MuJoCo内置可视化器"""
@@ -468,15 +652,40 @@ def create_simple_visualizer(mj_model, mj_data):
     print("🎬 MuJoCo内置查看器创建成功")
     return viewer
 
-def main(robot_name="airbot_play", task_name="place_block", sync=False, once=False):
-    """主函数 - 通用运行架构版，支持循环执行或单次执行"""
-
+def main(robot_name="airbot_play", task_name="place_block", sync=False, once=False, headless=False):
+    """主函数 - 改进版本，支持模板化配置和CICD模式
+    
+    Args:
+        robot_name: 机械臂名称
+        task_name: 任务名称
+        sync: 是否实时同步
+        once: 是否单次执行
+        headless: 是否无头模式（CICD用）
+    """
     print(f"Welcome to discoverse {discoverse.__version__} !")
     print(discoverse.__logo__)
 
     print(f"🤖 启动{robot_name.upper()} {task_name}任务演示")
     print(f"📋 执行模式: {'单次执行' if once else '循环执行'}")
+    print(f"📺 显示模式: {'无头模式' if headless else '可视化模式'}")
     print("=" * 70)
+    
+    # 验证配置文件
+    config_path = os.path.join(
+        discoverse.DISCOVERSE_ROOT_DIR, 
+        f"discoverse/configs/tasks/{task_name}.yaml"
+    )
+    
+    if os.path.exists(config_path):
+        try:
+            config = load_and_resolve_config(config_path)
+            config = replace_variables(config)  # 🔧 添加变量替换
+            if not validate_task_config(config, robot_name):
+                print("❌ 配置验证失败")
+                return
+            print("✅ 配置验证通过")
+        except Exception as e:
+            print(f"⚠️ 配置加载失败: {e}")
     
     xml_path = generate_robot_task_model(robot_name, task_name)
     mj_model = mujoco.MjModel.from_xml_path(xml_path)
@@ -486,25 +695,42 @@ def main(robot_name="airbot_play", task_name="place_block", sync=False, once=Fal
     # 初始化场景
     setup_scene(mj_model, mj_data, task_name)
 
-    # 创建查看器
-    viewer = create_simple_visualizer(mj_model, mj_data)
+    # 创建查看器（除非是无头模式）
+    viewer = None if headless else create_simple_visualizer(mj_model, mj_data)
+    if headless:
+        print("🤖 无头模式运行")
 
-    # 创建通用任务
+    # 创建通用任务 - 使用预处理的配置
     try:
-        task = UniversalTaskBase.create_from_configs(
-            robot_name=robot_name,
-            task_name=task_name,
+        from discoverse import DISCOVERSE_ROOT_DIR
+        configs_root = os.path.join(DISCOVERSE_ROOT_DIR, "discoverse", "configs")
+        robot_config_path = os.path.join(configs_root, "robots", f"{robot_name}.yaml")
+        
+        # 直接创建任务实例，传递预处理的配置
+        task = UniversalTaskBase(
+            robot_config_path=robot_config_path,
+            task_config_path=None,  # 不从文件加载
             mj_model=mj_model,
             mj_data=mj_data
         )
+        
+        # 手动设置已处理的任务配置
+        from discoverse.universal_manipulation.task_config import TaskConfigLoader
+        task.task_config = TaskConfigLoader.from_dict(config)
+        
+        # 创建任务执行器
+        task._create_executor()
+        
         print(f"✅ 任务创建成功")
         
         # 设置viewer引用
-        task.robot_interface.set_viewer(viewer)
+        if viewer:
+            task.robot_interface.set_viewer(viewer)
         
     except Exception as e:
         print(f"❌ 任务创建失败: {e}")
-        traceback.print_exc()
+        if not headless:  # 只在非CICD模式打印详细错误
+            traceback.print_exc()
         return
 
     # 创建通用运行时执行器
@@ -566,17 +792,19 @@ def main(robot_name="airbot_play", task_name="place_block", sync=False, once=Fal
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="通用机械臂任务演示")
+    parser = argparse.ArgumentParser(description="通用机械臂任务演示 - 改进版本")
     parser.add_argument("-r", "--robot", type=str, default="airbot_play", 
                        choices=["airbot_play", "arx_x5", "arx_l5", "piper", "panda", "rm65", "xarm7", "iiwa14", "ur5e"],
                        help="选择机械臂类型")
     parser.add_argument("-t", "--task", type=str, default="place_block",
-                       choices=["place_block", "cover_cup", "stack_block"],
+                       choices=["place_block", "cover_cup", "stack_block", "place_kiwi_fruit", "place_coffeecup", "close_laptop"],
                        help="选择任务类型")
     parser.add_argument("-s", "--sync", action="store_true", 
                        help="启用实时同步模式（仿真时间与真实时间一致）")
     parser.add_argument("-1", "--once", action="store_true",
                        help="单次执行模式（默认为循环执行）")
+    parser.add_argument("--headless", action="store_true",
+                       help="无头模式运行（CICD测试用）")
     args = parser.parse_args()
 
-    main(args.robot, args.task, sync=args.sync, once=args.once)
+    main(args.robot, args.task, sync=args.sync, once=args.once, headless=args.headless)

@@ -3,8 +3,7 @@
     <default class="ur5e">
       <material specular="0.5" shininess="0.25"/>
       <joint axis="0 1 0" range="-3.1416 3.1416" armature="0.1"/>
-      <general gaintype="fixed" biastype="affine" ctrlrange="-6.2831 6.2831" gainprm="2000" biasprm="0 -2000 -400"
-        forcerange="-150 150"/>
+      <general gaintype="fixed" biastype="affine" ctrlrange="-6.2831 6.2831" gainprm="3500" biasprm="0 -3500 -400" forcerange="-200 200"/>
       <default class="size3">
         <default class="size3_limited">
           <joint range="-3.1415 3.1415"/>
@@ -12,7 +11,7 @@
         </default>
       </default>
       <default class="size1">
-        <general gainprm="500" biasprm="0 -500 -100" forcerange="-28 28"/>
+        <general gainprm="1500" biasprm="0 -1500 -100" forcerange="-100 100"/>
       </default>
       <default class="visual">
         <geom type="mesh" contype="0" conaffinity="0" group="2"/>

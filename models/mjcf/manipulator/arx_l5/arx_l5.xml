@@ -38,7 +38,7 @@
                 <geom mesh="camera" pos="0.06 0 -0.01" quat="-1 0 0 1" material="black_mat" class="visual"/>
                 <geom mesh="camera" pos="0.06 0 -0.01" quat="-1 0 0 1" class="collision"/>
                 <camera name="wrist_cam" pos="0.0475 0 0.075" mode="fixed" euler="0 -1.1 -1.5708" focal="1.93e-3 1.93e-3" resolution="1280 720" sensorsize="3896e-6 2140e-6"/>
-                <site name="endpoint" pos='0.145 0 0'/>
+                <site name="endpoint" pos='0.15 0 0'/>
                 <body name="link7" pos="0.08657 0.024896 -0.0002436" gravcomp="1">
                   <inertial pos="-0.00035522 -0.007827 -0.0029883" quat="0.5 0.5 0.5 0.5" mass="0.064798" diaginertia="3e-05 3e-05 2e-05"/>
                   <joint name="joint7" axis="0 1 0" class="finger" range="0 0.044"/>

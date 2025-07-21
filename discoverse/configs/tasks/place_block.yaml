@@ -2,7 +2,17 @@
 # 将绿色方块放入粉色碗中
 
 task_name: "place_block"
-description: "将绿色方块抓取并放入粉色碗中"
+description: "将方块抓取并放入碗中"
+
+# ============== 成功条件检查 ==============
+success_check:
+  method: "simple"  # 使用简单检查方法
+  conditions:
+    - type: "distance_2d"  # 检查方块与碗的2D距离
+      object1: "block_green"
+      object2: "bowl_pink" 
+      threshold: 0.05  # 5cm容差
+      description: "绿色方块在粉色碗的5cm范围内"
 
 # ============== 运行时参数 ==============
 runtime_parameters:

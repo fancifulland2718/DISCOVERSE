@@ -164,6 +164,11 @@ class TaskConfigLoader:
         """获取成功条件"""
         return self.config.get('success_condition')
     
+    @property 
+    def success_check(self) -> Optional[Dict[str, Any]]:
+        """获取成功检查配置"""
+        return self.config.get('success_check')
+    
     @property
     def failure_conditions(self) -> List[Dict[str, Any]]:
         """获取失败条件列表"""

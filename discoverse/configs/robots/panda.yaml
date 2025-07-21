@@ -35,9 +35,9 @@ gripper:
   ctrl_index: 7                      # 夹爪控制器索引 (0-based)
   qpos_joints: ["finger_joint1", "finger_joint2"]  # qpos关节名称
   qpos_indices: [7, 8]               # qpos关节索引 (0-based)
-  ctrl_range: [0.0, 0.04]           # 控制范围 (m, 0=闭合, 0.04=打开)
+  ctrl_range: [0.0, 0.04]            # 控制范围 (m, 0=闭合, 0.04=打开)
   default_position: 0.04             # 默认位置 (完全打开)
-  close_position: 0.01               # 关闭位置
+  close_position: 0.00               # 关闭位置
   grasp_threshold: 0.02              # 抓取检测阈值
 
 # ============== 控制配置 ==============
@@ -69,8 +69,8 @@ control:
 # ============== IK求解配置 ==============
 ik_solver:
   solver_type: "quadprog"            # 使用quadprog求解器
-  position_tolerance: 0.01           # 位置收敛阈值 (m) 
-  orientation_tolerance: 0.05        # 姿态收敛阈值 (rad)
+  position_tolerance: 0.002          # 位置收敛阈值 (m) 
+  orientation_tolerance: 0.02        # 姿态收敛阈值 (rad)
   max_iterations: 50                 # 增加最大迭代次数
   damping: 1.0                       # LM阻尼系数
   position_cost: 100.0               # 位置任务权重

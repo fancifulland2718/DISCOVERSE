@@ -1,0 +1,209 @@
+# ============== cover_cup 任务配置 ==============
+# 将杯子从桌面移到盘子上，然后用杯盖盖住杯子
+
+task_name: "cover_cup"
+description: "将咖啡杯移到盘子上，然后用杯盖盖住"
+
+# ============== 成功条件检查 ==============
+success_check:
+  method: "combined"  # 组合检查方法
+  operator: "and"     # 所有条件都必须满足
+  conditions:
+    - type: "orientation"  # 检查杯子是否直立
+      object: "coffeecup_white"
+      axis: "z"  # Z轴
+      direction: "up"  # 朝上
+      threshold: 0.99  # cos值阈值
+      description: "咖啡杯直立（底部朝下）"
+      
+    - type: "distance_2d"  # 检查杯子是否在盘子上
+      object1: "coffeecup_white"
+      object2: "plate_white"
+      threshold: 0.25  # 25cm容差 (根据实际距离0.22m调整)
+      description: "咖啡杯在盘子上"
+      
+    - type: "distance_2d"  # 检查杯盖是否盖在杯子上
+      object1: "cup_lid"
+      object2: "coffeecup_white"
+      threshold: 0.025  # 2.5cm容差 (稍微宽松一点)
+      description: "杯盖盖在杯子上"
+
+# ============== 运行时参数 ==============
+runtime_parameters:
+  cup_object: "coffeecup_white"       # 咖啡杯
+  lid_object: "cup_lid"               # 杯盖
+  plate_object: "plate_white"         # 盘子
+  approach_height: 0.1                # 接近高度
+  grasp_height: 0.05                  # 抓取高度 
+  lift_height: 0.15                   # 提升高度
+  place_height: 0.08                  # 放置高度
+
+# ============== 状态序列 ==============
+states:
+  # 第一阶段：处理咖啡杯
+  
+  # 状态0: 移动到杯子前方（杯把位置）
+  - name: "approach_cup_handle"
+    primitive: "move_to_object"
+    params:
+      object_name: "coffeecup_white"
+      offset: [0.1, 0, 0.1]  # 从侧面接近杯把，高度10cm
+      approach_direction: "side"
+      coordinate_system: "world"
+    gripper_state: "open"
+    
+  # 状态1: 伸向杯把
+  - name: "move_to_handle"
+    primitive: "move_to_object"
+    params:
+      object_name: "coffeecup_white"
+      offset: [0.05, 0, 0.05]  # 更接近杯把位置
+      approach_direction: "side"
+      coordinate_system: "world"
+    gripper_state: "open"
+    
+  # 状态2: 抓住杯把
+  - name: "grasp_handle"
+    primitive: "grasp_object"
+    params:
+      object_name: "coffeecup_white"
+      grasp_type: "pinch"
+      force: 0.4
+    gripper_state: "close"
+    delay: 0.25
+
+  # 状态3: 提起杯子
+  - name: "lift_cup"
+    primitive: "move_relative"
+    params:
+      offset: [0, 0, 0.15]  # 提升15cm
+      coordinate_system: "world"
+      keep_orientation: true
+    gripper_state: "close"
+    
+  # 状态4: 移动到盘子上方
+  - name: "move_cup_to_plate_above"
+    primitive: "move_to_object"
+    params:
+      object_name: "plate_white"
+      offset: [0.06, 0, 0.13]  # 盘子上方，稍微偏移
+      coordinate_system: "world"
+    gripper_state: "close"
+    
+  # 状态5: 调整到盘子上方合适位置
+  - name: "position_cup_above_plate"
+    primitive: "move_to_object"
+    params:
+      object_name: "plate_white"
+      offset: [0.06, 0, 0.08]  # 降低高度
+      coordinate_system: "world"
+    gripper_state: "close"
+    
+  # 状态6: 放下杯子到盘子上
+  - name: "place_cup_on_plate"
+    primitive: "move_relative"
+    params:
+      offset: [0, 0, -0.02]  # 轻微下降
+      coordinate_system: "world"
+      keep_orientation: true
+    gripper_state: "close"
+    
+  # 状态7: 释放杯子
+  - name: "release_cup"
+    primitive: "release_object"
+    params:
+      object_name: "coffeecup_white"
+    gripper_state: "open"
+    
+  # 状态8: 抬起手臂
+  - name: "lift_away_from_cup"
+    primitive: "move_relative"
+    params:
+      offset: [0, 0, 0.08]  # 抬高8cm
+      coordinate_system: "world"
+      keep_orientation: true
+    gripper_state: "open"
+    
+  # 第二阶段：处理杯盖
+  
+  # 状态9: 移动到杯盖上方
+  - name: "approach_lid_above"
+    primitive: "move_to_object"
+    params:
+      object_name: "cup_lid"
+      offset: [0, 0, 0.1]  # 杯盖上方10cm
+      approach_direction: "top_down"
+      coordinate_system: "world"
+    gripper_state: "open"
+    
+  # 状态10: 下降到杯盖
+  - name: "move_to_lid"
+    primitive: "move_to_object"
+    params:
+      object_name: "cup_lid"
+      offset: [0, 0, 0.045]  # 接近杯盖
+      approach_direction: "top_down"
+      coordinate_system: "world"
+    gripper_state: "open"
+    
+  # 状态11: 抓住杯盖
+  - name: "grasp_lid"
+    primitive: "grasp_object"
+    params:
+      object_name: "cup_lid"
+      grasp_type: "pinch"
+      force: 0.3
+    gripper_state: "close"
+    delay: 0.25
+    
+  # 状态12: 提起杯盖
+  - name: "lift_lid"
+    primitive: "move_relative"
+    params:
+      offset: [0, 0, 0.08]  # 提升8cm
+      coordinate_system: "world"
+      keep_orientation: true
+    gripper_state: "close"
+    
+  # 状态13: 移动到杯子上方
+  - name: "move_lid_to_cup_above"
+    primitive: "move_to_object"
+    params:
+      object_name: "coffeecup_white"
+      offset: [0, 0, 0.16]  # 杯子上方16cm
+      coordinate_system: "world"
+    gripper_state: "close"
+    
+  # 状态14: 下降盖住杯子
+  - name: "cover_cup_with_lid"
+    primitive: "move_relative"
+    params:
+      offset: [0, 0, -0.02]  # 轻微下降
+      coordinate_system: "world"
+      keep_orientation: true
+    gripper_state: "close"
+    
+  # 状态15: 释放杯盖
+  - name: "release_lid"
+    primitive: "release_object"
+    params:
+      object_name: "cup_lid"
+    gripper_state: "open"
+    
+  # 状态16: 抬起手臂完成任务
+  - name: "lift_away_final"
+    primitive: "move_relative"
+    params:
+      offset: [0, 0, 0.05]  # 抬高5cm
+      coordinate_system: "world"
+      keep_orientation: true
+    gripper_state: "open"
+
+# ============== 任务元数据 ==============
+metadata:
+  total_states: 17
+  estimated_duration: 25.0  # 预计执行时间（秒）
+  difficulty: "medium"
+  category: "manipulation"
+  objects_involved: ["coffeecup_white", "cup_lid", "plate_white"]
+  skills_required: ["grasping", "placing", "precision_positioning"]

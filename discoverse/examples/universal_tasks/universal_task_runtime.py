@@ -298,14 +298,18 @@ class UniversalRuntimeTaskExecutor:
             print(f"   ⚠️ Mocap设置失败: {e}")
     
     def check_task_success(self):
-        """检查任务成功条件"""
+        """检查任务成功条件 - 根据任务类型动态判断"""
+        print(f"\\n🔍 开始任务成功检查...")
         try:
-            # 检查绿色方块是否在粉色碗中
-            block_pos = self.mj_data.body('block_green').xpos
-            bowl_pos = self.mj_data.body('bowl_pink').xpos
-            distance = np.linalg.norm(block_pos[:2] - bowl_pos[:2])  # 只检查XY平面
-            return distance < 0.03  # 3cm容差
-        except:
+            success = self.task.check_success()
+            if success:
+                print(f"   ✅ 任务成功检查通过！")
+            else:
+                print(f"   ❌ 任务成功检查未通过")
+            return success
+        except Exception as e:
+            print(f"   ⚠️ 任务成功检查失败: {e}")
+            traceback.print_exc()
             return False
     
     def run(self):
@@ -408,17 +412,16 @@ class UniversalRuntimeTaskExecutor:
         
         # 重新初始化mocap target
         mink.move_mocap_to_frame(self.mj_model, self.mj_data, "target", "endpoint", "site")
-        
         print("🔄 环境已重置，准备下一轮任务")
 
-def generate_robot_place_block_model(robot_name, task_name):
-    """生成指定机械臂的place_block模型"""
+def generate_robot_task_model(robot_name, task_name):
+    """生成指定机械臂的任务模型"""
     xml_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf/tmp", f"{robot_name}_{task_name}.xml")
     env = make_env(robot_name, task_name, xml_path)
-    print(f"🏗️ 生成{robot_name.upper()}模型: {xml_path}")
+    print(f"🏗️ 生成{robot_name.upper()}_{task_name.upper()}模型: {xml_path}")
     return xml_path
 
-def setup_scene(model, data):
+def setup_scene(model, data, task_name):
     """初始化场景"""
     # 重置到home位置
     mujoco.mj_resetDataKeyframe(model, data, model.key(0).id)
@@ -426,12 +429,28 @@ def setup_scene(model, data):
     
     # 初始化mocap target
     mink.move_mocap_to_frame(model, data, "target", "endpoint", "site")
-    print("🎯 Mocap target初始化成功")
     
     print("🎬 场景初始化完成")
-    print(f"   绿色方块位置: {data.body('block_green').xpos}")
-    print(f"   粉色碗位置: {data.body('bowl_pink').xpos}")
-    print(f"   机械臂末端位置: {data.site('endpoint').xpos}")
+    
+    # 根据任务类型显示对象位置
+    if task_name == "place_block":
+        try:
+            print(f"   绿色方块位置: {data.body('block_green').xpos}")
+            print(f"   粉色碗位置: {data.body('bowl_pink').xpos}")
+        except:
+            print("   ⚠️ 无法获取place_block对象位置")
+    elif task_name == "cover_cup":
+        try:
+            print(f"   咖啡杯位置: {data.body('coffeecup_white').xpos}")
+            print(f"   盘子位置: {data.body('plate_white').xpos}")
+            print(f"   杯盖位置: {data.body('cup_lid').xpos}")
+        except:
+            print("   ⚠️ 无法获取cover_cup对象位置")
+    
+    try:
+        print(f"   机械臂末端位置: {data.site('endpoint').xpos}")
+    except:
+        print("   ⚠️ 无法获取机械臂末端位置")
 
 def create_simple_visualizer(mj_model, mj_data):
     """创建MuJoCo内置可视化器"""
@@ -449,22 +468,23 @@ def create_simple_visualizer(mj_model, mj_data):
     print("🎬 MuJoCo内置查看器创建成功")
     return viewer
 
-def main(robot_name="airbot_play", task_name="place_block", sync=False):
-    """主函数 - 通用运行架构版，支持循环执行"""
+def main(robot_name="airbot_play", task_name="place_block", sync=False, once=False):
+    """主函数 - 通用运行架构版，支持循环执行或单次执行"""
 
     print(f"Welcome to discoverse {discoverse.__version__} !")
     print(discoverse.__logo__)
 
     print(f"🤖 启动{robot_name.upper()} {task_name}任务演示")
+    print(f"📋 执行模式: {'单次执行' if once else '循环执行'}")
     print("=" * 70)
     
-    xml_path = generate_robot_place_block_model(robot_name, task_name)
+    xml_path = generate_robot_task_model(robot_name, task_name)
     mj_model = mujoco.MjModel.from_xml_path(xml_path)
     mj_data = mujoco.MjData(mj_model)
     print(f"✅ 模型加载成功! (nq={mj_model.nq}, nkey={mj_model.nkey})")
 
     # 初始化场景
-    setup_scene(mj_model, mj_data)
+    setup_scene(mj_model, mj_data, task_name)
 
     # 创建查看器
     viewer = create_simple_visualizer(mj_model, mj_data)
@@ -493,8 +513,11 @@ def main(robot_name="airbot_play", task_name="place_block", sync=False):
 
         # 任务循环执行
         task_count = 0
-        print(f"\\n🔁 开始循环任务执行模式")
-        print(f"   提示: 关闭查看器窗口可退出程序")
+        if once:
+            print(f"\\n🎯 开始单次任务执行")
+        else:
+            print(f"\\n🔁 开始循环任务执行模式")
+            print(f"   提示: 关闭查看器窗口可退出程序")
         
         while True:
             task_count += 1
@@ -507,9 +530,14 @@ def main(robot_name="airbot_play", task_name="place_block", sync=False):
             
             if success:
                 print(f"\\n🎉 第 {task_count} 轮任务成功完成!")
-                print(f"   绿色方块已成功放入粉色碗中")
+                print(f"   任务目标已达成")
             else:
                 print(f"\\n⚠️ 第 {task_count} 轮任务未完全成功")
+            
+            # 单次执行模式下直接退出
+            if once:
+                print(f"\\n📋 单次执行模式，任务完成后退出")
+                break
             
             # 检查是否需要退出循环
             if executor.viewer_closed:
@@ -519,9 +547,10 @@ def main(robot_name="airbot_play", task_name="place_block", sync=False):
             # 重置环境准备下一轮
             executor.reset()
         
-        print(f"\\n📊 任务循环执行总结:")
+        print(f"\\n📊 任务执行总结:")
         print(f"   总执行轮数: {task_count}")
-        print(f"   退出原因: 查看器关闭")
+        exit_reason = "单次执行完成" if once else "查看器关闭"
+        print(f"   退出原因: {exit_reason}")
         
     except Exception as e:
         print(f"❌ 运行时执行失败: {e}")
@@ -537,12 +566,17 @@ def main(robot_name="airbot_play", task_name="place_block", sync=False):
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="通用机械臂place_block任务演示")
+    parser = argparse.ArgumentParser(description="通用机械臂任务演示")
     parser.add_argument("-r", "--robot", type=str, default="airbot_play", 
                        choices=["airbot_play", "arx_x5", "arx_l5", "piper", "panda", "rm65", "xarm7", "iiwa14", "ur5e"],
                        help="选择机械臂类型")
-    parser.add_argument("--sync", action="store_true", 
+    parser.add_argument("-t", "--task", type=str, default="place_block",
+                       choices=["place_block", "cover_cup", "stack_block"],
+                       help="选择任务类型")
+    parser.add_argument("-s", "--sync", action="store_true", 
                        help="启用实时同步模式（仿真时间与真实时间一致）")
+    parser.add_argument("-1", "--once", action="store_true",
+                       help="单次执行模式（默认为循环执行）")
     args = parser.parse_args()
 
-    main(args.robot, sync=args.sync)
+    main(args.robot, args.task, sync=args.sync, once=args.once)

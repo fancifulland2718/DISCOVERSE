@@ -212,11 +212,3 @@ states:
       keep_orientation: true
     gripper_state: "open"
     delay: "${stabilize_time}"
-
-# ============== 配置元数据 ==============
-metadata:
-  version: "1.0"
-  template: true
-  compatible_robots: ["airbot_play", "panda", "ur5e", "iiwa14"]
-  task_category: "pick_and_place"
-  difficulty: "basic"

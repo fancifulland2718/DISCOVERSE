@@ -23,6 +23,76 @@ success_check:
       threshold: 0.95
       description: "咖啡杯必须保持直立"
 
+# ============== 场景随机化配置 ==============
+randomization:
+  # 物体随机化
+  objects:
+    - name: "coffeecup_white"
+      position:
+        offset_range: [0.2, 0.2, 0.0]  # X轴±20cm, Y轴±6cm，参考原代码
+        bounds: [[-0.25, 0.25], [0.75, 1.25], [0.70, 0.75]]  # 工作空间边界
+      collision_avoidance: true  # 启用碰撞避免，确保杯子和盘子不重叠
+      min_distance: 0.15  # 咖啡杯需要较大操作空间，最小距离15cm
+      description: "咖啡杯位置大范围随机化"
+      
+    - name: "plate_white"
+      position:
+        offset_range: [0.2, 0.2, 0.0]  # X轴±6.25cm, Y轴±2cm，参考原代码
+        bounds: [[-0.15, 0.15], [0.85, 1.15], [0.70, 0.75]]  # 工作空间边界
+      collision_avoidance: true  # 启用碰撞避免
+      min_distance: 0.12  # 盘子作为目标位置，需要足够空间
+      description: "白色盘子位置随机化"
+  
+  # 相机随机化（可选，对应原代码中被注释的相机随机化）
+  cameras:
+    activate: true
+    eye_side:
+      position_offset: [0.05, 0.05, 0.05]  # 位置偏移范围 ±5cm
+      orientation_offset: [0.05, 0.05, 0.05]  # 姿态偏移范围 ±0.05弧度
+      description: "侧视相机视角随机化"
+  
+  # 光照随机化
+  lighting:
+    activate: true
+    random_color: true             # 随机化光源颜色
+    individual_colors: false       # 所有光源使用相同的颜色随机化
+    random_active: true            # 随机化光源激活状态
+    active_probability: 0.8        # 光源激活概率（较高，确保良好照明）
+    random_direction: true         # 随机化光源方向
+    position_offset:               # 光源位置偏移
+      xy_scale: 0.3               # XY方向偏移标准差
+      z_scale: 0.2                # Z方向偏移标准差
+    intensity_range:               # 光强范围
+      min: 0.1                    # 最小光强倍数
+      max: 0.9                    # 最大光强倍数
+    description: "光照随机化，适合咖啡杯的大范围位置随机化"
+  
+  # 桌面高度随机化 - 参考 airbot_task_base.py 和 cover_cup.py
+  table_height:
+    activate: true
+    table_name: "table"                # 桌面body名称
+    height_range: [-0.05, 0.1]         # 高度变化范围
+    affected_objects:                  # 受桌面高度影响的物体
+      - "coffeecup_white"              # 白色咖啡杯
+      - "plate_white"                  # 白色盘子
+    description: "随机化桌面高度，模拟不同桌面环境"
+
+  # 纹理随机化
+  textures:
+    activate: true
+    objects:
+      - name: "tc_texture"
+        mtl_type: "texture_1k"  # 使用1K纹理
+        description: "纹理随机化，适用于物体表面细节"
+
+  # 随机化设置
+  settings:
+    collision_check: false    # 不限制物体相对位置
+    max_attempts: 20          # 减少尝试次数，因为无碰撞检测
+    retry_on_failure: true
+    seed: null
+    description: "咖啡杯和盘子位置大范围随机化，不限制相对位置，参考place_coffeecup.py实现"
+
 # ============== 运行时参数覆盖 ==============
 runtime_parameters:
   source_object: "coffeecup_white"     # 白色咖啡杯

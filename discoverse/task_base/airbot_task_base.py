@@ -5,7 +5,7 @@ import shutil
 import mujoco
 import numpy as np
 from scipy.spatial.transform import Rotation
-from discoverse import DISCOVERSE_ASSETS_DIR
+from discoverse.utils import get_random_texture
 from discoverse.robots_env.airbot_play_base import AirbotPlayBase
 import pickle
 
@@ -64,14 +64,14 @@ class AirbotPlayTaskBase(AirbotPlayBase):
     def random_table_height(self, table_name="table", obj_name_list=[]):
         if not hasattr(self, "table_init_posi"):
             self.table_init_posi = self.mj_model.body(table_name).pos.copy()
-        change_height = np.random.uniform(0, 0.1)
+        change_height = np.random.uniform(-0.03, 0.07)
         self.mj_model.body(table_name).pos = self.table_init_posi.copy()
         self.mj_model.body(table_name).pos[2] = self.table_init_posi[2] - change_height
         for obj_name in obj_name_list:
             self.object_pose(obj_name)[2] -= change_height
     
     def random_table_texture(self):
-        self.update_texture("tc_texture", self.get_random_texture())
+        self.update_texture("tc_texture", get_random_texture())
         self.random_material("tc_texture")
     
     def random_material(self, mtl_name, random_color=False, emission=False):
@@ -117,7 +117,7 @@ class AirbotPlayTaskBase(AirbotPlayBase):
 
     def checkActionDone(self):
         joint_done = np.allclose(self.sensor_joint_qpos[:6], self.target_control[:6], atol=3e-2) and np.abs(self.sensor_joint_qvel[:6]).sum() < 0.1
-        gripper_done = np.allclose(self.sensor_joint_qpos[6], self.target_control[6], atol=0.4) and np.abs(self.sensor_joint_qvel[6]).sum() < 0.125
+        gripper_done = np.allclose(self.sensor_joint_qpos[6], self.target_control[6], atol=0.016) and np.abs(self.sensor_joint_qvel[6]).sum() < 0.005
         self.delay_cnt -= 1
         delay_done = (self.delay_cnt<=0)
         self.action_done_dict = {

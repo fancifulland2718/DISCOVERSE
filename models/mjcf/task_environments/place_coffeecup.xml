@@ -1,7 +1,6 @@
 <mujoco model="place_coffeecup">
   <include file="../object/coffeecup_dependencies.xml"/>
   <include file="../object/plate_white_dependencies.xml"/>
-  <include file="../object/wood_dependencies.xml"/>
   <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/"/>
   <worldbody>
     <site name="manipulator_locate" pos="0.3 0.92 0.71" euler="0 0 3.1416"/>
@@ -12,10 +11,6 @@
     <body name="plate_white" pos="-0.0667474 0.825 0.714159">
       <joint type="free" frictionloss="0.00005"/>
       <include file="../object/plate_white.xml"/>
-    </body>
-    <body name="wood" pos="-0.0683076 0.832 0.701954" euler="0 0 0">
-      <joint type="free" frictionloss="0.00005"/>
-      <include file="../object/wood.xml"/>
     </body>
   </worldbody>
   <include file="../scene/qz_lab3.xml"/>

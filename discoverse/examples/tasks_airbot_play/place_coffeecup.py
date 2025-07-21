@@ -10,7 +10,7 @@ from discoverse.envs import make_env
 from discoverse.robots import AirbotPlayIK
 from discoverse import DISCOVERSE_ROOT_DIR, DISCOVERSE_ASSETS_DIR
 from discoverse.robots_env.airbot_play_base import AirbotPlayCfg
-from discoverse.utils import get_body_tmat, step_func, SimpleStateMachine
+from discoverse.utils import get_body_tmat, step_func, SimpleStateMachine, get_random_texture
 from discoverse.task_base import AirbotPlayTaskBase, recoder_airbot_play, batch_encode_videos, copypy2
 
 
@@ -40,7 +40,7 @@ class SimNode(AirbotPlayTaskBase):
         self.random_material("coffeecup_texture")
         self.random_material("wood_texture")
         self.random_material("plate_white_texture")
-        self.update_texture("wood_texture", self.get_random_texture())
+        self.update_texture("wood_texture", get_random_texture())
 
         # 随机 灯光
         self.random_light()

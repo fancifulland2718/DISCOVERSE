@@ -26,21 +26,17 @@ class SimNode(AirbotPlayTaskBase):
         self.object_pose("plate_white")[:2] += 2.*(np.random.random(2) - 0.5) * np.array([0.05, 0.02])
         self.object_pose("plate_white")[0] += wood_base_x_bias
 
-        # 随机 木板位置
-        self.object_pose("wood")[0] += wood_base_x_bias
-
         # 随机 杯盖位置
         self.object_pose("cup_lid")[:2] += 2.*(np.random.random(2) - 0.5) * np.array([0.05, 0.05])
 
         # 随机桌子高度
-        self.random_table_height(obj_name_list=["plate_white", "coffeecup_white", "wood", "cup_lid"])
+        self.random_table_height(obj_name_list=["plate_white", "coffeecup_white", "cup_lid"])
 
         # 随机 桌面纹理
         self.random_table_texture()
 
         # 随机物体材质
         self.random_material("coffeecup_texture")
-        self.random_material("wood_texture")
         self.random_material("plate_white_texture")
         self.random_material("cup_lid_texture")
 

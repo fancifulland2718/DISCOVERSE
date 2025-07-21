@@ -7,8 +7,7 @@
 import os
 import yaml
 import numpy as np
-from typing import Dict, List, Any, Optional
-from pathlib import Path
+from typing import Dict, List, Any
 
 class RobotConfigLoader:
     """机械臂配置加载器"""
@@ -102,19 +101,9 @@ class RobotConfigLoader:
         return self.config['robot_name']
     
     @property
-    def base_link(self) -> str:
-        """获取基座链接名称"""
-        return self.config['kinematics']['base_link']
-    
-    @property
     def end_effector_site(self) -> str:
         """获取末端执行器site名称"""
         return self.config['kinematics']['end_effector_site']
-    
-    @property
-    def dof(self) -> int:
-        """获取总自由度数 (兼容性, 使用qpos_dim)"""
-        return self.config.get('qpos_dim', self.config['kinematics'].get('dof', 0))
     
     @property
     def qpos_dim(self) -> int:
@@ -142,151 +131,9 @@ class RobotConfigLoader:
         return self.config['gripper']
     
     @property
-    def control(self) -> Dict:
-        """获取控制配置"""
-        return self.config.get('control', {})
-    
-    @property
     def arm_joint_names(self) -> List[str]:
         """获取机械臂关节名称列表"""
         return self.config['kinematics'].get('arm_joint_names', [])
-    
-    @property
-    def gripper_joint_names(self) -> List[str]:
-        """获取夹爪关节名称列表"""
-        return self.config['gripper'].get('joint_names', [])
-    
-    @property
-    def gripper_joint_indices(self) -> List[int]:
-        """获取夹爪关节索引"""
-        indices = self.config['gripper']['joint_indices']
-        return indices if isinstance(indices, list) else [indices]
-    
-    @property
-    def gripper_range(self) -> List[float]:
-        """获取夹爪开合范围"""
-        return self.config['gripper']['range']
-    
-    @property
-    def joint_limits(self) -> Dict[str, np.ndarray]:
-        """获取关节限制（从MuJoCo模型的actuator_ctrlrange获取）"""
-        # 这个方法现在应该从MuJoCo模型中获取限制
-        # 实际实现需要在有mj_model的情况下调用
-        # 返回空字典，实际使用应该在robot_interface中调用get_joint_limits_from_mujoco
-        return {}
-    
-    @property
-    def default_poses(self) -> Dict[str, np.ndarray]:
-        """获取默认位姿（从MJCF文件的keyframe中读取）"""
-        # 从MJCF文件中读取默认位姿
-        if 'mjcf_model' in self.config:
-            mjcf_path = self.config['mjcf_model']['base_path']
-            # 这里应该实现从MJCF文件读取keyframe的逻辑
-            # 暂时返回空字典，实际实现需要解析MJCF文件
-            return {}
-        return {}
-    
-    @property
-    def ik_solver_config(self) -> Dict[str, Any]:
-        """获取IK求解器配置"""
-        return self.config.get('ik_solver', {})
-    
-    @property
-    def workspace(self) -> Dict[str, Any]:
-        """获取工作空间配置（已删除，返回空字典）"""
-        return {}
-    
-    @property
-    def safety_config(self) -> Dict[str, Any]:
-        """获取安全配置（已删除，返回空字典）"""
-        return {}
-    
-    @property
-    def sensors(self) -> Dict[str, Any]:
-        """获取传感器配置"""
-        return self.config.get('sensors', {})
-    
-    @property
-    def control(self) -> Dict[str, Any]:
-        """获取控制配置"""
-        return self.config.get('control', {})
-    
-    # ============== 便利方法 ==============
-    
-    def get_home_pose(self) -> Optional[np.ndarray]:
-        """获取home位姿（从MJCF文件读取）"""
-        # 从MJCF文件中读取home位姿
-        if 'mjcf_model' in self.config:
-            mjcf_path = self.config['mjcf_model']['base_path']
-            # 这里应该实现从MJCF文件读取keyframe的逻辑
-            # 暂时返回None，实际实现需要解析MJCF文件
-            return None
-        return None
-    
-    def get_ready_pose(self) -> Optional[np.ndarray]:
-        """获取ready位姿（从MJCF文件读取）"""
-        # 从MJCF文件中读取ready位姿
-        if 'mjcf_model' in self.config:
-            mjcf_path = self.config['mjcf_model']['base_path']
-            # 这里应该实现从MJCF文件读取keyframe的逻辑
-            # 暂时返回None，实际实现需要解析MJCF文件
-            return None
-        return None
-    
-    def is_position_in_workspace(self, position: np.ndarray, workspace_type: str = 'reachable') -> bool:
-        """
-        检查位置是否在工作空间内
-        
-        Args:
-            position: 位置坐标 [x, y, z]
-            workspace_type: 工作空间类型 ('reachable' 或 'recommended')
-            
-        Returns:
-            是否在工作空间内
-        """
-        # 由于删除了workspace配置，默认允许所有位置
-        return True
-    
-    def get_joint_limit(self, joint_idx: int, limit_type: str = 'position') -> Optional[List[float]]:
-        """
-        获取指定关节的限制（从MuJoCo模型的actuator_ctrlrange获取）
-        
-        Args:
-            joint_idx: 关节索引
-            limit_type: 限制类型 ('position', 'velocity', 'effort')
-            
-        Returns:
-            关节限制 [min, max] 或 max_value
-        """
-        # 这个方法现在应该从MuJoCo模型中获取限制
-        # 实际实现需要在有mj_model的情况下调用
-        return None
-    
-    def validate_joint_position(self, joint_positions: np.ndarray) -> bool:
-        """
-        验证关节位置是否在限制范围内（从MuJoCo模型的actuator_ctrlrange获取）
-        
-        Args:
-            joint_positions: 关节位置数组
-            
-        Returns:
-            是否在限制范围内
-        """
-        # 由于现在从MuJoCo模型获取限制，这里暂时返回True
-        # 实际验证应该在robot_interface中进行
-        return True
-    
-    def __str__(self) -> str:
-        """字符串表示"""
-        if not self.config:
-            return "RobotConfigLoader(not loaded)"
-        
-        return f"RobotConfigLoader({self.robot_name}, {self.arm_joints}DOF + gripper)"
-    
-    def __repr__(self) -> str:
-        """对象表示"""
-        return self.__str__()
-
 
 def load_robot_config(config_path: str) -> RobotConfigLoader:
     """

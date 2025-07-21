@@ -57,15 +57,6 @@ control:
     - name: "fingers_actuator"       # 夹爪控制
       type: "tendon"
 
-# ============== 工作空间配置 ==============
-workspace:
-  position_limits:
-    x: [-0.85, 0.85]                 # X轴范围 (m)
-    y: [-0.85, 0.85]                 # Y轴范围 (m)  
-    z: [0.1, 1.4]                    # Z轴范围 (m)
-  velocity_limits: [1.7, 1.7, 1.7]  # 线速度限制 (m/s)
-  acceleration_limits: [3.5, 3.5, 3.5]  # 线加速度限制 (m/s²)
-
 # ============== IK求解配置 ==============
 ik_solver:
   solver_type: "quadprog"            # 使用quadprog求解器
@@ -89,20 +80,6 @@ sensors:
   joint_states: true                 # 关节状态传感器
   end_effector_wrench: false         # 末端力/力矩传感器
   joint_torques: true                # 关节力矩传感器
-
-# ============== 安全配置 ==============
-safety:
-  joint_limits_check: true          # 启用关节限制检查
-  workspace_check: true             # 启用工作空间检查
-  collision_check: false            # 碰撞检测 (暂未实现)
-  emergency_stop: true              # 紧急停止功能
-
-# ============== 特殊配置 ==============
-special_features:
-  compliance_control: true           # 柔顺控制能力
-  cartesian_impedance: true          # 笛卡尔阻抗控制
-  nullspace_control: true            # 零空间控制
-  precise_positioning: true          # 精密定位能力
   
 # ============== MJCF模型路径 ==============
 mjcf_model:

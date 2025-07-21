@@ -55,7 +55,7 @@ class UniversalTaskCICD:
         
         self.supported_tasks = [
             "place_block", "cover_cup", "stack_block", 
-            "place_kiwi_fruit", "place_coffeecup", "close_laptop"
+            "place_kiwi_fruit", "place_coffeecup"
         ]
         
         # 测试结果

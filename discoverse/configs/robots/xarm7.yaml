@@ -90,12 +90,6 @@ sensors:
   end_effector_wrench: false         # 末端力/力矩传感器
   joint_torques: true                # 关节力矩传感器
 
-# ============== 特殊配置 ==============
-special_features:
-  seven_dof: true                    # 7自由度机械臂
-  tendon_gripper: true               # tendon夹爪
-  collaborative: true                # 协作机械臂
-  
 # ============== MJCF模型路径 ==============
 mjcf_model:
   base_path: "models/mjcf/manipulator/robot_xarm7.xml"

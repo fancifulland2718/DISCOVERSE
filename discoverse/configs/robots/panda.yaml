@@ -90,12 +90,6 @@ sensors:
   end_effector_wrench: false         # 末端力/力矩传感器
   joint_torques: true                # 关节力矩传感器
 
-# ============== 特殊配置 ==============
-special_features:
-  compliance_control: true           # 柔顺控制能力
-  cartesian_impedance: true          # 笛卡尔阻抗控制
-  nullspace_control: true            # 零空间控制
-  
 # ============== MJCF模型路径 ==============
 mjcf_model:
   base_path: "models/mjcf/manipulator/robot_panda.xml"

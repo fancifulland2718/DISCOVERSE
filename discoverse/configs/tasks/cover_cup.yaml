@@ -13,20 +13,99 @@ success_check:
       object: "coffeecup_white"
       axis: "z"  # Z轴
       direction: "up"  # 朝上
-      threshold: 0.95  # cos值阈值
+      threshold: 0.99  # cos值阈值，参考原代码
       description: "咖啡杯直立（底部朝下）"
       
     - type: "distance_2d"  # 检查杯子是否在盘子上
       object1: "coffeecup_white"
       object2: "plate_white"
-      threshold: 0.25  # 25cm容差 (根据实际距离0.22m调整)
+      threshold: 0.04  # 4cm容差，参考原代码
       description: "咖啡杯在盘子上"
       
     - type: "distance_2d"  # 检查杯盖是否盖在杯子上
       object1: "cup_lid"
       object2: "coffeecup_white"
-      threshold: 0.025  # 2.5cm容差 (稍微宽松一点)
+      threshold: 0.02  # 2cm容差，参考原代码
       description: "杯盖盖在杯子上"
+
+# ============== 场景随机化配置 ==============
+randomization:
+  # 物体随机化
+  objects:
+    - name: "coffeecup_white"
+      position:
+        offset_range: [0.05, 0.05, 0.0]  # X轴±5cm, Y轴±3cm，参考原代码
+        bounds: [[-0.15, 0.15], [0.85, 1.15], [0.70, 0.75]]  # 工作空间边界
+      collision_avoidance: true  # 启用碰撞避免
+      min_distance: 0.08  # 咖啡杯直径约6cm，最小距离8cm确保操作空间
+      description: "咖啡杯位置随机化"
+      
+    - name: "plate_white"
+      position:
+        offset_range: [0.05, 0.05, 0.0]  # X轴±5cm, Y轴±2cm，参考原代码
+        bounds: [[-0.15, 0.15], [0.85, 1.15], [0.70, 0.75]]  # 工作空间边界
+      collision_avoidance: true  # 启用碰撞避免
+      min_distance: 0.10  # 盘子直径较大，需要更大避让距离
+      description: "白色盘子位置随机化"
+      
+    - name: "cup_lid"
+      position:
+        offset_range: [0.05, 0.05, 0.0]  # X轴±5cm, Y轴±5cm，参考原代码
+        bounds: [[-0.15, 0.15], [0.85, 1.15], [0.70, 0.75]]  # 工作空间边界
+      collision_avoidance: true  # 启用碰撞避免
+      min_distance: 0.06  # 杯盖较小，最小距离6cm
+      description: "杯盖位置随机化"
+  
+  # 相机随机化（可选）
+  cameras:
+    activate: true
+    eye_side:
+      position_offset: [0.03, 0.03, 0.03]  # 位置偏移范围 ±3cm
+      orientation_offset: [0.03, 0.03, 0.03]  # 姿态偏移范围 ±0.03弧度
+      description: "侧视相机视角随机化"
+  
+  # 光照随机化
+  lighting:
+    activate: true
+    random_color: true             # 随机化光源颜色
+    individual_colors: true        # 每个光源独立颜色随机化
+    random_active: true            # 随机化光源激活状态
+    active_probability: 0.75       # 光源激活概率
+    random_direction: true         # 随机化光源方向
+    position_offset:               # 光源位置偏移
+      xy_scale: 0.2               # 较小的XY偏移，适合精细操作
+      z_scale: 0.1                # 较小的Z偏移
+    intensity_range:               # 光强范围
+      min: 0.1                    # 最小光强倍数
+      max: 0.9                    # 最大光强倍数
+    description: "光照随机化，适合精细操作的照明变化"
+  
+  # 桌面高度随机化
+  table_height:
+    activate: true
+    table_name: "table"                # 桌面body名称
+    height_range: [-0.05, 0.1]         # 高度变化范围 0-10cm，参考airbot_task_base.py
+    affected_objects:                  # 受桌面高度影响的物体，参考cover_cup.py
+      - "plate_white"                  # 白色盘子
+      - "coffeecup_white"              # 咖啡杯
+      - "cup_lid"                      # 杯盖
+    description: "随机化桌面高度，模拟不同桌面环境"
+
+  # 纹理随机化
+  textures:
+    activate: true
+    objects:
+      - name: "tc_texture"
+        mtl_type: "texture_1k"  # 使用1K纹理
+        description: "纹理随机化，适用于物体表面细节"
+
+  # 随机化设置
+  settings:
+    collision_check: false    # 不限制物体相对位置
+    max_attempts: 20
+    retry_on_failure: true
+    seed: null
+    description: "咖啡杯、盘子和杯盖位置随机化"
 
 # ============== 运行时参数 ==============
 runtime_parameters:
@@ -199,11 +278,3 @@ states:
       keep_orientation: true
     gripper_state: "open"
 
-# ============== 任务元数据 ==============
-metadata:
-  total_states: 17
-  estimated_duration: 25.0  # 预计执行时间（秒）
-  difficulty: "medium"
-  category: "manipulation"
-  objects_involved: ["coffeecup_white", "cup_lid", "plate_white"]
-  skills_required: ["grasping", "placing", "precision_positioning"]

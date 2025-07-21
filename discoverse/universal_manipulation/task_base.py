@@ -7,14 +7,13 @@
 import os
 import mujoco
 import numpy as np
-from typing import Dict, Any, Optional
-from pathlib import Path
+from typing import Optional
 
 from .robot_config import RobotConfigLoader
 from .task_config import TaskConfigLoader
-from .robot_interface import RobotInterface, PandaRobotInterface
-from .executor import UniversalTaskExecutor, TaskExecutionResult
-from .primitives import PrimitiveRegistry
+from .robot_interface import RobotInterface
+from .randomization import SceneRandomizer
+from .config_utils import load_and_resolve_config, replace_variables
 
 class UniversalTaskBase:
     """通用任务基类"""
@@ -24,8 +23,7 @@ class UniversalTaskBase:
                  task_config_path: str,
                  mj_model: mujoco.MjModel,
                  mj_data: mujoco.MjData,
-                 robot_interface: Optional[RobotInterface] = None,
-                 primitive_registry: Optional[PrimitiveRegistry] = None):
+                 robot_interface: Optional[RobotInterface] = None):
         """
         初始化通用任务
         
@@ -35,47 +33,29 @@ class UniversalTaskBase:
             mj_model: MuJoCo模型
             mj_data: MuJoCo数据
             robot_interface: 机械臂接口（可选，会自动创建）
-            primitive_registry: 原语注册器（可选，使用全局注册器）
         """
         # 加载配置 - 使用模板化配置解析
         self.robot_config = RobotConfigLoader(robot_config_path)
         
-        # 任务配置加载
-        if task_config_path is None:
-            # 如果没有提供路径，稍后会手动设置task_config
-            self.task_config = None
-        else:
-            # 使用新的配置解析方法
-            try:
-                from discoverse.examples.universal_tasks.universal_task_runtime import load_and_resolve_config
-                resolved_config = load_and_resolve_config(task_config_path)
-                self.task_config = TaskConfigLoader.from_dict(resolved_config)
-            except ImportError:
-                # fallback to original method
-                self.task_config = TaskConfigLoader(task_config_path)
+        resolved_config = load_and_resolve_config(task_config_path)
+        config = replace_variables(resolved_config)
+        self.task_config = TaskConfigLoader.from_dict(config)
         
         # 创建机械臂接口
         if robot_interface is None:
             robot_interface = self._create_robot_interface(mj_model, mj_data)
         self.robot_interface = robot_interface
         
-        # 创建任务执行器 (如果task_config可用)
-        self.executor = None
-        if self.task_config is not None:
-            self._create_executor(primitive_registry)
-        
         # 存储模型引用
         self.mj_model = mj_model
         self.mj_data = mj_data
     
-    def _create_executor(self, primitive_registry=None):
-        """创建任务执行器"""
-        self.executor = UniversalTaskExecutor(
-            robot_interface=self.robot_interface,
-            task_config=self.task_config,
-            primitive_registry=primitive_registry
-        )
-    
+        self.randomizer = SceneRandomizer(self.mj_model, self.mj_data)
+        if self.task_config.randomization is not None and self.task_config.validate_randomization_config():
+            self.randomization_config = self.task_config.randomization
+        else:
+            self.randomization_config = None
+
     def _create_robot_interface(self, mj_model: mujoco.MjModel, mj_data: mujoco.MjData):
         """
         根据机械臂类型创建对应的接口
@@ -88,85 +68,36 @@ class UniversalTaskBase:
             机械臂接口实例
         """
         robot_name = self.robot_config.robot_name.lower()
-        
-        if robot_name == "panda":
-            return PandaRobotInterface(mj_model, mj_data)
-        elif robot_name == "airbot_play":
-            from .robot_interface import AirbotRobotInterface
-            return AirbotRobotInterface(mj_model, mj_data)
-        elif robot_name in ["arx_x5", "arx_l5", "piper", "ur5e", "rm65", "xarm7", "iiwa14"]:
-            # 对于新支持的机械臂，使用通用接口
-            from .robot_interface import GenericRobotInterface
-            return GenericRobotInterface(self.robot_config, mj_model, mj_data)
+        if robot_name in ["airbot_play", "panda", "arx_x5", "arx_l5", "piper", "ur5e", "rm65", "xarm7", "iiwa14"]:
+            return RobotInterface(self.robot_config, mj_model, mj_data)
         else:
-            # 对于其他机械臂，暂时抛出错误
             raise NotImplementedError(f"Robot '{robot_name}' interface not implemented yet")
     
-    def run_task(self, 
-                 runtime_params: Optional[Dict[str, Any]] = None,
-                 start_from_state: int = 0,
-                 timeout: float = 300.0,
-                 **kwargs) -> TaskExecutionResult:
-        """
-        运行任务
-        
-        Args:
-            runtime_params: 运行时参数
-            start_from_state: 从哪个状态开始
-            timeout: 超时时间
-            **kwargs: 额外的运行时参数
-            
-        Returns:
-            任务执行结果
-        """
-        # 合并参数
-        if runtime_params is None:
-            runtime_params = {}
-        runtime_params.update(kwargs)
-        
-        # 执行任务
-        return self.executor.execute_task(
-            runtime_params=runtime_params,
-            start_from_state=start_from_state,
-            timeout=timeout
-        )
+    # ============== 随机化相关方法 ==============
     
+    def randomize_scene(self, max_attempts: int = 100) -> bool:
+        if not self.randomization_config:
+            return
+        self.randomizer.exec_randomization(self.randomization_config, max_attempts)
+    
+    # ============== 任务执行相关方法 ==============
     def check_success(self) -> bool:
         """检查任务是否成功"""
-        print(f"   🔍 开始检查任务成功条件...")
-        
-        # 首先检查任务配置中是否有成功检查配置
-        if hasattr(self.task_config, 'success_check'):
-            print(f"   📋 使用配置化成功检查")
-            return self._check_configured_success()
-        
-        print(f"   📋 使用默认成功检查")
-        # 否则使用默认的执行结果检查
-        return self.executor.execution_result.success if hasattr(self.executor, 'execution_result') else False
-    
+        return self._check_configured_success()
+
     def _check_configured_success(self) -> bool:
         """根据配置文件检查成功条件"""
-        try:
-            success_config = self.task_config.success_check
-            method = success_config.get('method', 'simple')
-            print(f"   📊 成功检查方法: {method}")
-            
-            if method == 'custom':
-                # 保留原有的硬编码检查作为后备
-                return self._check_custom_success()
-            elif method == 'simple':
-                return self._check_simple_conditions(success_config)
-            elif method == 'combined':
-                return self._check_combined_conditions(success_config)
-            else:
-                print(f"警告：未知的成功检查方法: {method}")
-                return False
-        except Exception as e:
-            print(f"   ❌ 配置化成功检查异常: {e}")
-            import traceback
-            traceback.print_exc()
+        success_config = self.task_config.success_check
+        method = success_config.get('method', 'simple')
+
+        if method == 'simple':
+            return self._check_simple_conditions(success_config)
+        elif method == 'combined':
+            return self._check_combined_conditions(success_config)
+        else:
+            print(f"警告：未知的成功检查方法: {method}")
             return False
-    
+   
     def _check_simple_conditions(self, success_config) -> bool:
         """检查简单成功条件（单一条件检查）"""
         conditions = success_config.get('conditions', [])
@@ -337,75 +268,7 @@ class UniversalTaskBase:
             'threshold': condition.get('threshold'),
             'operator': condition.get('operator', '>')
         })
-    
-    def _check_custom_success(self) -> bool:
-        """自定义成功检查方法"""
-        task_name = self.task_config.task_name
-        
-        if task_name == "cover_cup":
-            return self._check_cover_cup_success()
-        elif task_name == "place_block":
-            return self._check_place_block_success()
-        else:
-            # 未知任务，返回False
-            return False
-    
-    def _check_cover_cup_success(self) -> bool:
-        """检查cover_cup任务成功条件"""
-        try:
-            from discoverse.utils import get_body_tmat
-            
-            tmat_lid = get_body_tmat(self.mj_data, "cup_lid")
-            tmat_cup = get_body_tmat(self.mj_data, "coffeecup_white")
-            tmat_plate = get_body_tmat(self.mj_data, "plate_white")
-            
-            # 检查杯子是否直立 (Z轴朝上)
-            cup_upright = abs(tmat_cup[2, 2]) > 0.99
-            
-            # 检查杯子是否在盘子上 (XY平面距离<2cm)
-            cup_on_plate = np.hypot(tmat_plate[0, 3] - tmat_cup[0, 3], 
-                                   tmat_plate[1, 3] - tmat_cup[1, 3]) < 0.02
-            
-            # 检查杯盖是否盖在杯子上 (XY平面距离<2cm)
-            lid_on_cup = np.hypot(tmat_lid[0, 3] - tmat_cup[0, 3], 
-                                 tmat_lid[1, 3] - tmat_cup[1, 3]) < 0.02
-            
-            return cup_upright and cup_on_plate and lid_on_cup
-            
-        except Exception as e:
-            print(f"Cover cup success check failed: {e}")
-            return False
-    
-    def _check_place_block_success(self) -> bool:
-        """检查place_block任务成功条件"""
-        try:
-            block_pos = self.mj_data.body('block_green').xpos
-            bowl_pos = self.mj_data.body('bowl_pink').xpos
-            distance = np.linalg.norm(block_pos[:2] - bowl_pos[:2])  # 只检查XY平面
-            return distance < 0.03  # 3cm容差
-        except:
-            return False
-    
-    def get_status(self) -> Dict[str, Any]:
-        """获取任务状态"""
-        return self.executor.get_current_status()
-    
-    def get_robot_debug_info(self) -> Dict[str, Any]:
-        """获取机械臂调试信息"""
-        return self.robot_interface.get_debug_info()
-    
-    def pause(self):
-        """暂停任务"""
-        self.executor.pause_task()
-    
-    def resume(self):
-        """恢复任务"""
-        self.executor.resume_task()
-    
-    def stop(self):
-        """停止任务"""
-        self.executor.stop_task()
-    
+
     @staticmethod
     def create_from_configs(robot_name: str, 
                            task_name: str,

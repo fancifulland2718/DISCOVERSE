@@ -1,5 +1,4 @@
 # ============== stack_block 任务配置 ==============
-# 将绿色方块和红色方块依次堆叠到蓝色方块上
 
 task_name: "stack_block"
 description: "将绿色方块放到蓝色方块上，然后将红色方块放到绿色方块上，形成堆叠"
@@ -28,6 +27,87 @@ success_check:
       threshold: 0.025  # 2.5cm容差
       description: "红色方块堆叠在绿色方块上"
 
+# ============== 场景随机化配置 ==============
+randomization:
+  # 物体随机化
+  objects:
+    - name: "block_green"
+      position:
+        offset_range: [0.08, 0.06, 0.0]  # X轴±8cm, Y轴±6cm, Z轴固定
+        bounds: [[-0.15, 0.15], [0.8, 1.2], [0.7145, 0.7145]]  # 工作空间边界
+      collision_avoidance: true
+      min_distance: 0.06  # 方块边长约4cm，最小距离6cm确保不碰撞
+      description: "绿色方块位置随机化"
+      
+    - name: "block_red"
+      position:
+        offset_range: [0.08, 0.06, 0.0]  # X轴±8cm, Y轴±6cm, Z轴固定
+        bounds: [[-0.15, 0.15], [0.8, 1.2], [0.7145, 0.7145]]  # 工作空间边界
+      collision_avoidance: true
+      min_distance: 0.06  # 方块边长约4cm，最小距离6cm确保不碰撞
+      description: "红色方块位置随机化"
+      
+    - name: "block_blue"
+      position:
+        offset_range: [0.08, 0.06, 0.0]  # X轴±8cm, Y轴±6cm, Z轴固定
+        bounds: [[-0.15, 0.15], [0.8, 1.2], [0.7145, 0.7145]]  # 工作空间边界
+      collision_avoidance: true
+      min_distance: 0.06  # 方块边长约4cm，最小距离6cm确保不碰撞
+      description: "蓝色方块位置随机化"
+  
+  # 相机随机化（可选，对应原代码中被注释的相机随机化）
+  cameras:
+    activate: true
+    eye_side:
+      position_offset: [0.05, 0.05, 0.05]  # 位置偏移范围 ±5cm
+      orientation_offset: [0.05, 0.05, 0.05]  # 姿态偏移范围 ±0.05弧度
+      description: "侧视相机视角随机化"
+  
+  # 光照随机化（参考airbot_task_base中的random_light方法）
+  lighting:
+    activate: true
+    random_color: true             # 随机化光源颜色
+    individual_colors: false       # 所有光源使用相同的颜色随机化
+    random_active: true            # 随机化光源激活状态
+    active_probability: 0.7        # 光源激活概率
+    random_direction: true         # 随机化光源方向
+    position_offset:               # 光源位置偏移
+      xy_scale: 0.3               # XY方向偏移标准差
+      z_scale: 0.2                # Z方向偏移标准差
+    intensity_range:               # 光强范围
+      min: 0.1                    # 最小光强倍数
+      max: 0.9                    # 最大光强倍数
+    description: "光照随机化，模拟不同照明条件"
+  
+  # 桌面高度随机化 - 参考 airbot_task_base.py 和 cover_cup.py
+  table_height:
+    activate: true
+    table_name: "table"                # 桌面body名称
+    height_range: [0.0, 0.1]           # 高度变化范围
+    affected_objects:                  # 受桌面高度影响的物体
+      - "block_green"                  # 绿色方块
+      - "block_red"                    # 红色方块
+      - "block_blue"                   # 蓝色方块
+    description: "随机化桌面高度，模拟不同桌面环境"
+
+  # 纹理随机化
+  textures:
+    activate: true
+    objects:
+      - name: "tc_texture"
+        mtl_type: "texture_1k"  # 使用1K纹理
+        description: "纹理随机化，适用于物体表面细节"
+
+  # 随机化全局设置
+  settings:
+    collision_check: true          # 启用全局碰撞检测
+    max_attempts: 100              # 最大尝试次数
+    retry_on_failure: true         # 失败时重试
+    seed: null                     # 随机种子（null表示使用系统时间）
+    collision_tolerance: 0.01      # 碰撞检测容差（1cm）
+    debug_collision: false         # 是否输出碰撞检测调试信息
+    description: "三个方块位置随机化，启用智能碰撞避免"
+
 # ============== 运行时参数 ==============
 runtime_parameters:
   green_block: "block_green"      # 绿色方块
@@ -40,8 +120,6 @@ runtime_parameters:
   stack_height_2: 0.10            # 第二层堆叠高度（红色到绿色）
   place_offset: 0.04              # 放置时的降低高度
 
-# ============== 状态序列 ==============
-states:
 # ============== 状态序列 ==============
 states:
   # 第一阶段：绿色方块 -> 蓝色方块
@@ -219,17 +297,6 @@ objects:
     color: "blue"
     initial_position: "fixed"
     role: "base"  # 作为堆叠的底座
-
-# ============== 环境配置 ==============
-environment:
-  workspace_bounds:
-    x: [-0.2, 0.2]
-    y: [0.7, 1.3]
-    z: [0.6, 1.0]
-  
-  safety_zones:
-    collision_avoidance: true
-    minimum_object_distance: 0.03  # 最小物体间距
 
 # ============== 执行配置 ==============
 execution:

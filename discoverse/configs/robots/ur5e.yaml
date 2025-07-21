@@ -60,15 +60,6 @@ coordinate_frames:
   planning_frame: "base"             # 规划坐标系
   tcp_frame: "endpoint"              # 工具中心点坐标系
 
-# ============== 工作空间配置 ==============
-workspace:
-  position_limits:
-    x: [-0.8, 0.8]                   # X轴范围 (m)
-    y: [-0.8, 0.8]                   # Y轴范围 (m)  
-    z: [0.1, 1.2]                    # Z轴范围 (m)
-  velocity_limits: [2.0, 2.0, 2.0]  # 线速度限制 (m/s)
-  acceleration_limits: [5.0, 5.0, 5.0]  # 线加速度限制 (m/s²)
-
 # ============== IK求解配置 ==============
 ik_solver:
   solver_type: "quadprog"            # 使用quadprog求解器
@@ -87,20 +78,6 @@ sensors:
   end_effector_wrench: false         # 末端力/力矩传感器
   joint_torques: true                # 关节力矩传感器
 
-# ============== 安全配置 ==============
-safety:
-  joint_limits_check: true          # 启用关节限制检查
-  workspace_check: true             # 启用工作空间检查
-  collision_check: false            # 碰撞检测 (暂未实现)
-  emergency_stop: true              # 紧急停止功能
-
-# ============== 特殊配置 ==============
-special_features:
-  compliance_control: false          # 柔顺控制能力
-  cartesian_impedance: false         # 笛卡尔阻抗控制
-  nullspace_control: true            # 零空间控制
-  industrial_grade: true             # 工业级机械臂
-  
 # ============== MJCF模型路径 ==============
 mjcf_model:
   base_path: "models/mjcf/manipulator/robot_ur5e.xml"

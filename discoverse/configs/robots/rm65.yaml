@@ -86,12 +86,6 @@ sensors:
   joint_torques: true                # 关节力矩传感器
   camera: true                       # 集成相机
 
-# ============== 特殊配置 ==============
-special_features:
-  integrated_camera: true            # 集成相机
-  multi_finger_gripper: true         # 多指夹爪
-  adaptive_grasp: true               # 自适应抓取
-  
 # ============== MJCF模型路径 ==============
 mjcf_model:
   base_path: "models/mjcf/manipulator/robot_rm65.xml"

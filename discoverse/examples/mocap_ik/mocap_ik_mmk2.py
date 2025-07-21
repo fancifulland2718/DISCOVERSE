@@ -99,18 +99,18 @@ if __name__ == "__main__":
     rgt_mocap_name = "rgt_target"
     rgt_mocap_box_name = rgt_mocap_name + "_box"
 
-    # 生成左右臂的mocap刚体XML
-    mocap_body_xml = ""
-    mocap_body_xml += generate_mocap_xml(lft_mocap_name)
-    mocap_body_xml += generate_mocap_xml(rgt_mocap_name)
+    # 生成左右臂的mocap刚体XML元素
+    mocap_body_elements = []
+    mocap_body_elements.append(generate_mocap_xml(lft_mocap_name))
+    mocap_body_elements.append(generate_mocap_xml(rgt_mocap_name))
 
-    # 生成左右臂的mocap传感器XML
-    sensor_xml = ""
-    sensor_xml += generate_mocap_sensor_xml(lft_mocap_name, ref_name="base_link", ref_type="site")
-    sensor_xml += generate_mocap_sensor_xml(rgt_mocap_name, ref_name="base_link", ref_type="site")
+    # 生成左右臂的mocap传感器XML元素
+    sensor_elements = []
+    sensor_elements.extend(generate_mocap_sensor_xml(lft_mocap_name, ref_name="base_link", ref_type="site"))
+    sensor_elements.extend(generate_mocap_sensor_xml(rgt_mocap_name, ref_name="base_link", ref_type="site"))
 
     # 将mocap刚体和传感器添加到模型中
-    mj_model = add_mocup_body_to_mjcf(mjcf_path, mocap_body_xml, sensor_xml, keep_tmp_xml=True)
+    mj_model = add_mocup_body_to_mjcf(mjcf_path, mocap_body_elements, sensor_elements, keep_tmp_xml=True)
     # 计算渲染间隔，确保按照指定帧率渲染
     render_gap = int(1.0 / render_fps / mj_model.opt.timestep)
 

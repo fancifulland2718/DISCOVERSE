@@ -539,7 +539,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="通用机械臂place_block任务演示")
     parser.add_argument("-r", "--robot", type=str, default="airbot_play", 
-                       choices=["airbot_play", "arx_x5", "arx_l5", "piper", "panda", "rm65", "xarm7"],
+                       choices=["airbot_play", "arx_x5", "arx_l5", "piper", "panda", "rm65", "xarm7", "iiwa14", "ur5e"],
                        help="选择机械臂类型")
     parser.add_argument("--sync", action="store_true", 
                        help="启用实时同步模式（仿真时间与真实时间一致）")

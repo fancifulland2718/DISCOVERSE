@@ -4,6 +4,7 @@
 
   <include file="../scene/skybox.xml"/>
   <include file="kuka_iiwa_14/iiwa14_dependencies.xml"/>
+  <include file="kuka_iiwa_14/iiwa14_appendix.xml"/>
 
   <worldbody>
     <body name="iiwa14_pose" pos="0 0 0.78" euler="0 0 0">

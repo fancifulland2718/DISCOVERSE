@@ -74,7 +74,7 @@ class UniversalTaskBase:
         elif robot_name == "airbot_play":
             from .robot_interface import AirbotRobotInterface
             return AirbotRobotInterface(mj_model, mj_data)
-        elif robot_name in ["arx_x5", "arx_l5", "piper", "ur5e", "rm65", "xarm7"]:
+        elif robot_name in ["arx_x5", "arx_l5", "piper", "ur5e", "rm65", "xarm7", "iiwa14"]:
             # 对于新支持的机械臂，使用通用接口
             from .robot_interface import GenericRobotInterface
             return GenericRobotInterface(self.robot_config, mj_model, mj_data)

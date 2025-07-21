@@ -55,17 +55,17 @@
                   <inertial pos="0 0 0.0115" mass="0.2" diaginertia="0.0001 0.0001 0.0001"/>
                   <joint name="base_joint_gripper_left" pos="0 0 0" axis="1 0 0" type="slide" range="-0.055 -0.0027" actuatorfrcrange="-200 200" damping="2"/>
                   <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.4 0.4 0.4 1" mesh="GUIDE_WSG50_110"/>
-                  <geom type="mesh" rgba="0.4 0.4 0.4 1" mesh="GUIDE_WSG50_110"/>
                   <geom pos="0 0 0.023" type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.4 0.4 0.4 1" mesh="WSG-FMF"/>
-                  <geom pos="0 0 0.023" type="mesh" rgba="0.4 0.4 0.4 1" mesh="WSG-FMF"/>
+                  <geom pos="0 0 0.023" type="mesh" rgba="1 0 0 1" mesh="WSG-FMF" class="collision"/>
+                  <geom type="box" pos="-0.002 0 0.143" size="0.005 0.01 0.01" rgba="1 0 0 1" class="collision"/>
                 </body>
                 <body name="gripper_right" pos="0 0.0823 0" quat="-0.707141 0.707073 -3.31169e-05 3.49965e-05">
                   <inertial pos="0 0 0.0115" mass="0.2" diaginertia="0.0001 0.0001 0.0001"/>
                   <joint name="base_joint_gripper_right" pos="0 0 0" axis="-1 0 0" type="slide" range="0.0027 0.055" actuatorfrcrange="-200 200" damping="2"/>
-                  <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.6 0.6 0.6 1" mesh="GUIDE_WSG50_110"/>
-                  <geom type="mesh" rgba="0.6 0.6 0.6 1" mesh="GUIDE_WSG50_110"/>
+                  <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.4 0.4 0.4 1" mesh="GUIDE_WSG50_110"/>
                   <geom pos="0 0 0.023" type="mesh" contype="0" conaffinity="0" group="1" density="0" rgba="0.4 0.4 0.4 1" mesh="WSG-FMF"/>
-                  <geom pos="0 0 0.023" type="mesh" rgba="0.4 0.4 0.4 1" mesh="WSG-FMF"/>
+                  <geom pos="0 0 0.023" type="mesh" rgba="1 0 0 1" mesh="WSG-FMF" class="collision"/>
+                  <geom type="box" pos="-0.002 0 0.143" size="0.005 0.01 0.01" rgba="1 0 0 1" class="collision"/>
                 </body>
               </body>
             </body>

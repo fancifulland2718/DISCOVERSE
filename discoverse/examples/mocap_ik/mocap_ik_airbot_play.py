@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     # 加载Airbot Play机器人模型的MJCF文件
     if mjcf_path is None:
-        mjcf_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "airbot_play_floor.xml")
+        mjcf_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "manipulator", "robot_airbot_play.xml")
     else:
         if not os.path.exists(mjcf_path):
             paths = [
@@ -94,12 +94,12 @@ if __name__ == "__main__":
     mocap_name = "end_target"
     mocap_box_name = mocap_name + "_box"
 
-    # 生成mocap刚体XML
-    mocap_body_xml = generate_mocap_xml(mocap_name)
-    # 生成mocap传感器XML，参考坐标系为机械臂基座
-    sensor_xml = generate_mocap_sensor_xml(mocap_name, ref_name="armbase", ref_type="site")
+    # 生成mocap刚体XML元素
+    mocap_body_element = generate_mocap_xml(mocap_name)
+    # 生成mocap传感器XML元素，参考坐标系为机械臂基座
+    sensor_elements = generate_mocap_sensor_xml(mocap_name, ref_name="armbase", ref_type="site")
     # 将mocap刚体和传感器添加到模型中
-    mj_model = add_mocup_body_to_mjcf(mjcf_path, mocap_body_xml, sensor_xml)
+    mj_model = add_mocup_body_to_mjcf(mjcf_path, [mocap_body_element], sensor_elements)
     # 计算渲染间隔，确保按照指定帧率渲染
     render_gap = int(1.0 / render_fps / mj_model.opt.timestep)
 

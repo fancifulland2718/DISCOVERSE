@@ -72,6 +72,7 @@ if __name__ == "__main__":
         default=None,
         help="输入MJCF文件的路径（可选）。如未指定，则使用默认的robot_airbot_play.xml"
     )
+    args = parser.parse_args()
 
     # 检查是否在macOS上运行并给出适当的提示
     if platform.system() == "Darwin":
@@ -97,7 +98,6 @@ if __name__ == "__main__":
     # 设置numpy输出格式
     np.set_printoptions(precision=5, suppress=True, linewidth=500)
 
-    args = parser.parse_args()
     robot_name = args.robot
     task_name = args.task
     if robot_name is not None and task_name is not None:
@@ -157,10 +157,10 @@ if __name__ == "__main__":
         if mid == -1:
             raise KeyError(f"Mocap body '{mocap_name}' not found")
     except KeyError:
-        # 生成mocap刚体XML
-        mocap_body_xml = generate_mocap_xml(mocap_name)
+        # 生成mocap刚体XML元素
+        mocap_body_element = generate_mocap_xml(mocap_name)
         # 将mocap刚体添加到模型中
-        mj_model = add_mocup_body_to_mjcf(mjcf_path, mocap_body_xml, keep_tmp_xml=True)
+        mj_model = add_mocup_body_to_mjcf(mjcf_path, [mocap_body_element])
     mj_data = mujoco.MjData(mj_model)
 
     # Create a Mink configuration

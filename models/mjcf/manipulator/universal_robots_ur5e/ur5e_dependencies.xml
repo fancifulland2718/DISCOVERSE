@@ -18,7 +18,7 @@
         <geom type="mesh" contype="0" conaffinity="0" group="2"/>
       </default>
       <default class="collision">
-        <geom type="capsule" group="3"/>
+        <geom type="capsule" group="3" condim="3" solimp="0.99 0.995 0.01" solref="0.01 1" friction="1 0.005 0.0001"/>
         <default class="eef_collision">
           <geom type="cylinder"/>
         </default>

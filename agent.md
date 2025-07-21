@@ -59,7 +59,7 @@ gripper:
 
 ### 🎯 夹爪控制器抽象
 
-创建了统一的夹爪控制接口 `discoverse/robots/gripper_controller.py`：
+创建了统一的夹爪控制接口 `discoverse/universal_manipulation/gripper_controller.py`：
 
 ```python
 # 工厂模式创建夹爪控制器

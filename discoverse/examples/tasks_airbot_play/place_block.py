@@ -11,6 +11,7 @@ from discoverse import DISCOVERSE_ROOT_DIR
 from discoverse.robots_env.airbot_play_base import AirbotPlayCfg
 from discoverse.utils import get_body_tmat, get_site_tmat, step_func, SimpleStateMachine
 from discoverse.task_base import AirbotPlayTaskBase, recoder_airbot_play, batch_encode_videos, copypy2
+from discoverse.task_base.airbot_task_base import PyavImageEncoder
 
 class SimNode(AirbotPlayTaskBase):
     def __init__(self, config: AirbotPlayCfg):
@@ -100,7 +101,6 @@ if __name__ == "__main__":
     max_time = 10.0 # seconds
     
     action = np.zeros(7)
-    video_tasks = []
 
     move_speed = 0.75
     sim_node.reset()
@@ -112,7 +112,9 @@ if __name__ == "__main__":
             act_lst, obs_lst = [], []
             if args.save_segment:
                 samples.reset()
-
+            save_path = os.path.join(save_dir, "{:03d}".format(data_idx))
+            os.makedirs(save_path, exist_ok=True)
+            encoders = {cam_id: PyavImageEncoder(20, cfg.render_set["width"], cfg.render_set["height"], save_path, cam_id) for cam_id in cfg.obs_rgb_cam_id}
         try:
             if stm.trigger():
                 if stm.state_idx == 0: # 伸到方块上方
@@ -168,6 +170,9 @@ if __name__ == "__main__":
         action[6] = sim_node.target_control[6]
 
         obs, _, _, _, _ = sim_node.step(action)
+        imgs = obs.pop('img')
+        for cam_id, img in imgs.items():
+            encoders[cam_id].encode(img, obs["time"])
 
         if len(obs_lst) < sim_node.mj_data.time * cfg.render_set["fps"]:
             act_lst.append(action.tolist().copy())
@@ -177,9 +182,9 @@ if __name__ == "__main__":
 
         if stm.state_idx >= stm.max_state_cnt:
             if sim_node.check_success():
-                save_path = os.path.join(save_dir, "{:03d}".format(data_idx))
-                tasks = recoder_airbot_play(save_path, act_lst, obs_lst, cfg)
-                video_tasks.extend(tasks)
+                recoder_airbot_play(save_path, act_lst, obs_lst, cfg)
+                for encoder in encoders.values():
+                    encoder.close()
                 if args.save_segment:
                     seg_process = mp.Process(target=samples.save)
                     seg_process.start()
@@ -192,7 +197,3 @@ if __name__ == "__main__":
                 print(f"{data_idx} Failed")
 
             sim_node.reset()
-
-    if video_tasks:
-        max_workers = min(4, max(2, os.cpu_count() // 2))
-        batch_encode_videos(video_tasks, max_workers=max_workers)

@@ -8,69 +8,65 @@ import mujoco
 import numpy as np
 from scipy.spatial.transform import Rotation
 from discoverse.robots_env.airbot_play_base import AirbotPlayBase, AirbotPlayCfg
-import pickle
-from collections import defaultdict
 import av
 
 
+class PyavImageEncoder:
+
+    def __init__(self, fps, width, height, save_path, id):
+        self.fps = fps
+        self.width = width
+        self.height = height
+        container = av.open(os.path.join(save_path, f"cam_{id}.mp4"), "w", format="mp4")
+        stream: av.video.stream.VideoStream = container.add_stream("h264", options={"preset": "fast"})
+        stream.width = width
+        stream.height = height
+        stream.pix_fmt = "yuv420p"
+        stream.time_base = fractions.Fraction(1, int(1e9))
+        self.container = container
+        self.stream = stream
+        self.start_time = None
+        self.last_time = None
+
+    def encode(self, image: np.ndarray, timestamp: float):
+        if self.start_time is None:
+            self.start_time = timestamp
+            self.last_time = 0
+            self.container.metadata["comment"] = str({"base_stamp": int(self.start_time * 1e9)})
+        frame = av.VideoFrame.from_ndarray(image, format="rgb24")
+        cur_time = timestamp
+        frame.pts = int((cur_time - self.start_time) * 1e9)
+        frame.time_base = self.stream.time_base
+        assert cur_time > self.last_time, f"Time error: {cur_time} <= {self.last_time}"
+        self.last_time = cur_time
+        for packet in self.stream.encode(frame):
+            self.container.mux(packet)
+
+    def close(self):
+        if self.container is not None:
+            for packet in self.stream.encode():
+                self.container.mux(packet)
+            self.container.close()
+
+
 def recoder_airbot_play(save_path, act_lst, obs_lst, cfg: AirbotPlayCfg):
-    if os.path.exists(save_path):
-        shutil.rmtree(save_path)
     os.makedirs(save_path, exist_ok=True)
 
     # 保存JSON数据
     with open(os.path.join(save_path, "obs_action.json"), "w") as fp:
         time = []
         jq = []
-        images = defaultdict(list)
         for obs in obs_lst:
             time.append(obs['time'])
             jq.append(obs['jq'])
-            for img_id in cfg.obs_rgb_cam_id:
-                images[img_id].append(obs['img'][img_id])
         json.dump({
             "time" : time,
             "obs"  : {
                 "jq" : jq,},
             "act"  : act_lst,
         }, fp)
+    print(f"Saved data to {save_path}")
 
-    for id, image_list in images.items():
-        container = av.open(os.path.join(save_path, f"cam_{id}.mp4"), "w", format="mp4")
-        stream: av.video.stream.VideoStream = container.add_stream("h264", options={"preset": "fast"})
-        stream.width = cfg.render_set["width"]
-        stream.height = cfg.render_set["height"]
-        stream.pix_fmt = "yuv420p"
-        stream.time_base = fractions.Fraction(1, int(1e9))
-        start_time = time[0]
-        last_time = 0
-        container.metadata["comment"] = str({"base_stamp": int(start_time * 1e9)})
-        for index, img in enumerate(image_list):
-            frame = av.VideoFrame.from_ndarray(img, format="rgb24")
-            cur_time = time[index]
-            frame.pts = int((cur_time - start_time) * 1e9)
-            frame.time_base = stream.time_base
-            assert cur_time > last_time, f"Time error: {cur_time} <= {last_time}"
-            last_time = cur_time
-            for packet in stream.encode(frame):
-                container.mux(packet)
-        for packet in stream.encode():
-            container.mux(packet)
-        container.close()
-
-    # 保存视频数据为pickle文件，稍后编码
-    video_tasks = []
-    for id in cfg.obs_rgb_cam_id:
-        video_data_path = os.path.join(save_path, f"cam_{id}_data.pkl")
-        video_frames = [o['img'][id] for o in obs_lst]
-        with open(video_data_path, 'wb') as f:
-            pickle.dump(video_frames, f)
-        video_tasks.append({
-            'data_path': video_data_path,
-            'output_path': os.path.join(save_path, f"cam_{id}.mp4"),
-            'fps': cfg.render_set["fps"]
-        })
-    return video_tasks
 
 class AirbotPlayTaskBase(AirbotPlayBase):
     target_control = np.zeros(7)

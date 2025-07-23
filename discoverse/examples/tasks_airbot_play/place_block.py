@@ -183,7 +183,6 @@ if __name__ == "__main__":
                 if args.save_segment:
                     seg_process = mp.Process(target=samples.save)
                     seg_process.start()
-                    process_list.append(seg_process)
 
                 data_idx += 1
                 print("\r{:4}/{:4} ".format(data_idx, data_set_size), end="")

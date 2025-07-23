@@ -40,10 +40,10 @@
     </body>
 
     <!-- ======= bowl ======= -->
-    <body name="bowl_pink" pos="-0.1 0.90 0.7">
+    <!-- <body name="bowl_pink" pos="-0.1 0.90 0.7">
       <joint type="free" frictionloss="0.00001"/>
       <include file="../object/bowl_pink.xml"/>
-    </body>
+    </body> -->
 
     <body name="cabinet" pos="0.915 0.58 0.01">
       <include file="../object/cabinet.xml"/>

@@ -35,7 +35,7 @@ class SimNode(AirbotPlayTaskBase):
         self.random_table_height(obj_name_list=["plate_white", "coffeecup_white", "wood", "cup_lid"])
 
         # 随机 桌面纹理
-        self.random_table_texture()
+        # self.random_table_texture()
 
         # 随机物体材质
         self.random_material("coffeecup_texture")

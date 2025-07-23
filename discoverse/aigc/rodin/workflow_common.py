@@ -117,6 +117,13 @@ def download_only_mode(download_dir, session):
                     f.write(response.content)
                 print(f"✅ 下载完成: {file_name}")
             
+            # 生成base.mtl文件
+            mtl_content = """newmtl material_0\nmap_Kd texture_diffuse.png\nmap_Ns texture_roughness.png\nmap_Bump texture_normal.png\nmap_Pm texture_metallic.png\nmap_Pr texture_pbr.png"""
+            mtl_file_path = os.path.join(download_dir, task_id, "base.mtl")
+            with open(mtl_file_path, "w", encoding='utf-8') as f:
+                f.write(mtl_content)
+            print(f"✅ 生成材质文件: base.mtl")
+            
             completed_tasks.append(task_id)
             print(f"🎊 任务 {task_id} 下载完成！")
         else:

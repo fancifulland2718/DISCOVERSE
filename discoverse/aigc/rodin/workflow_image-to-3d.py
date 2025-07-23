@@ -63,6 +63,16 @@ def resolve_image_paths(task):
         return extract_frames_from_video(video_path, num_frames)
     raise ValueError('任务配置必须包含 image, images 或 video 字段')
 
+def get_image_mime_type(image_path):
+    """根据文件扩展名返回对应的MIME类型"""
+    ext = os.path.splitext(image_path)[1].lower()
+    mime_types = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+    }
+    return mime_types.get(ext, 'image/png')  # 默认使用png
+
 def generate_3d_asset_from_images(image_paths, prompt=None, session=None):
     if session is None:
         session = create_session()
@@ -71,7 +81,8 @@ def generate_3d_asset_from_images(image_paths, prompt=None, session=None):
     }
     files = []
     for img_path in image_paths:
-        files.append(('images', (os.path.basename(img_path), open(img_path, 'rb'), 'image/png')))
+        mime_type = get_image_mime_type(img_path)
+        files.append(('images', (os.path.basename(img_path), open(img_path, 'rb'), mime_type)))
     if prompt:
         files.append(('prompt', (None, prompt)))
     files.append(('geometry_file_format', (None, 'obj')))

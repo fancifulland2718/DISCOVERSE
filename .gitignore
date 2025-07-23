@@ -18,5 +18,8 @@ discoverse/randomain/models
 policies/dp/logs
 *.npz
 */textures_1k/*
-
-cicd_reports/*
+discoverse/aigc/rodin/assets/*
+discoverse/aigc/rodin/*.txt
+discoverse/aigc/rodin/*.yaml
+discoverse/aigc/rodin/images/*
+discoverse/aigc/rodin/videos/*

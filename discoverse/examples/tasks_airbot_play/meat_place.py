@@ -19,8 +19,8 @@ class SimNode(AirbotPlayTaskBase):
     def domain_randomization(self):
         # random_bias_xy = np.zeros(2)  # 随机偏移量 创建一个包含两个元素的零向量
         random_bias_xy = np.zeros(2)
-        random_bias_xy[0] = 2.*(np.random.random() - 0.5) * 0.04  # 减去 0.5 使得随机数在 -0.5 到 0.5 之间 乘以 2.0 使得随机数在 -1.0 到 1.0 之间
-        random_bias_xy[1] = 2.*(np.random.random() - 0.5) * 0.03  # 减去 0.5 使得随机数在 -0.5 到 0.5 之间 乘以 2.0 使得随机数在 -1.0 到 1.0 之间
+        random_bias_xy[0] = 2.*(np.random.random() - 0.5) * 0.00  # 减去 0.5 使得随机数在 -0.5 到 0.5 之间 乘以 2.0 使得随机数在 -1.0 到 1.0 之间
+        random_bias_xy[1] = 2.*(np.random.random() - 0.5) * 0.00  # 减去 0.5 使得随机数在 -0.5 到 0.5 之间 乘以 2.0 使得随机数在 -1.0 到 1.0 之间
             # 0.08 0.05 0.04 0.03
         # 随机 红烧肉
         self.mj_data.qpos[self.nj+1+0] += random_bias_xy[0]
@@ -31,8 +31,8 @@ class SimNode(AirbotPlayTaskBase):
         self.mj_data.qpos[self.nj+1*7+1+1] += random_bias_xy[1]
 
         # 随机 碗位置    相对红烧肉偏离14个单位
-        self.mj_data.qpos[self.nj+2*7+1+0] += 2.*(np.random.random() - 0.5) * 0.03  #X 方向：在 [-0.05, 0.05) 范围内随机浮动
-        self.mj_data.qpos[self.nj+2*7+1+1] += 2.*(np.random.random() - 0.5) * 0.02  #Y 方向：在 [-0.05, 0.05) 范围内随机浮动
+        self.mj_data.qpos[self.nj+2*7+1+0] += 2.*(np.random.random() - 0.5) * 0.00  #X 方向：在 [-0.05, 0.05) 范围内随机浮动
+        self.mj_data.qpos[self.nj+2*7+1+1] += 2.*(np.random.random() - 0.5) * 0.00  #Y 方向：在 [-0.05, 0.05) 范围内随机浮动
 
     def check_success(self):
         tmat_jujube = get_body_tmat(self.mj_data, "meat_1")
@@ -68,7 +68,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_idx", type=int, default=0, help="data index")
-    parser.add_argument("--data_set_size", type=int, default=10, help="data set size")
+    parser.add_argument("--data_set_size", type=int, default=1, help="data set size")
     parser.add_argument("--auto", action="store_true", help="auto run")
     parser.add_argument("--save_segment", action="store_true", help="save segment videos")
     parser.add_argument('--use_gs', action='store_true', help='Use gaussian splatting renderer')
@@ -163,7 +163,7 @@ if __name__ == "__main__":
                     sim_node.target_control[:6] = arm_ik.properIK(tmat_tgt_local[:3,3], trmat, sim_node.mj_data.qpos[:6])
                 elif stm.state_idx == 10: #伸到meat_2
                     tmat_meat = get_body_tmat(sim_node.mj_data, "meat_2")
-                    tmat_meat[:3, 3] = tmat_meat[:3, 3] + 0.045 * tmat_meat[:3, 2] # 0.045 夹爪离红烧肉的高度偏移量
+                    tmat_meat[:3, 3] = tmat_meat[:3, 3] + 0.040 * tmat_meat[:3, 2] # 0.045 夹爪离红烧肉的高度偏移量
                     tmat_tgt_local = tmat_armbase_2_world @ tmat_meat
                     sim_node.target_control[:6] = arm_ik.properIK(tmat_tgt_local[:3,3], trmat, sim_node.mj_data.qpos[:6])
                 elif stm.state_idx == 11: # 抓住meat_2
@@ -193,7 +193,7 @@ if __name__ == "__main__":
                     sim_node.target_control[:6] = arm_ik.properIK(tmat_tgt_local[:3,3], trmat, sim_node.mj_data.qpos[:6])
                 elif stm.state_idx == 19: #伸到meat_3
                     tmat_meat = get_body_tmat(sim_node.mj_data, "meat_3")
-                    tmat_meat[:3, 3] = tmat_meat[:3, 3] + 0.045 * tmat_meat[:3, 2] # 0.045 夹爪离红烧肉的高度偏移量
+                    tmat_meat[:3, 3] = tmat_meat[:3, 3] + 0.040 * tmat_meat[:3, 2] # 0.045 夹爪离红烧肉的高度偏移量
                     tmat_tgt_local = tmat_armbase_2_world @ tmat_meat
                     sim_node.target_control[:6] = arm_ik.properIK(tmat_tgt_local[:3,3], trmat, sim_node.mj_data.qpos[:6])
                 elif stm.state_idx == 20: # 抓住meat_3
@@ -223,7 +223,7 @@ if __name__ == "__main__":
                     sim_node.target_control[:6] = arm_ik.properIK(tmat_tgt_local[:3,3], trmat, sim_node.mj_data.qpos[:6])
                 elif stm.state_idx == 28: #伸到meat_4
                     tmat_meat = get_body_tmat(sim_node.mj_data, "meat_4")
-                    tmat_meat[:3, 3] = tmat_meat[:3, 3] + 0.045 * tmat_meat[:3, 2] # 0.045 夹爪离红烧肉的高度偏移量
+                    tmat_meat[:3, 3] = tmat_meat[:3, 3] + 0.040 * tmat_meat[:3, 2] # 0.045 夹爪离红烧肉的高度偏移量
                     tmat_tgt_local = tmat_armbase_2_world @ tmat_meat
                     sim_node.target_control[:6] = arm_ik.properIK(tmat_tgt_local[:3,3], trmat, sim_node.mj_data.qpos[:6])
                 elif stm.state_idx == 29: # 抓住meat_4
@@ -268,6 +268,9 @@ if __name__ == "__main__":
         action[6] = sim_node.target_control[6]
 
         obs, _, _, _, _ = sim_node.step(action)
+        imgs = obs.pop('img')
+        for cam_id, img in imgs.items():
+            encoders[cam_id].encode(img, obs["time"])
 
         if len(obs_lst) < sim_node.mj_data.time * cfg.render_set["fps"]:
             act_lst.append(action.tolist().copy())

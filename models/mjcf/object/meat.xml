@@ -1,0 +1,12 @@
+<mujocoinclude>
+  <joint type="free"/>
+  <inertial pos="0 0 0" mass="0.1" diaginertia="2e-05 2e-05 2e-05" />
+  <geom material="meat_texture" mesh="meat" class="obj_visual"/>
+
+  <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_0"/>
+  <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_1"/>
+  <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_2"/>
+  <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_3"/>
+  <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_4"/>
+  <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_5"/>
+</mujocoinclude>

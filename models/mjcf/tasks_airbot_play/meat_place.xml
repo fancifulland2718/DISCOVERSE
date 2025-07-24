@@ -1,0 +1,146 @@
+<mujoco model="meat_place">
+
+  <include file="../scene.xml"/>
+  <include file="../airbot_play/airbot_play_options.xml"/>
+  <include file="../airbot_play/airbot_play_dependencies.xml"/>
+
+  <compiler meshdir="../../meshes/" texturedir="../../meshes/"/>
+
+  <include file="../object/coffeecup_dependencies.xml"/>
+  <include file="../object/meat_dependencies.xml"/>
+  <include file="../object/flower_bowl_dependencies.xml"/>
+  <include file="../object/table_cloth_dependencies.xml"/>
+  <include file="../object/plate_white_dependencies.xml"/>
+
+
+  <worldbody>
+
+    <!-- ======= AITBOT PLAY ======= -->
+    <body name="arm_pose" pos="0.3 0.92 0.71" euler="0 0 3.1416">
+      <include file="../airbot_play/airbot_play.xml"/>
+    </body>
+
+    <!-- ======= EYE SIDE ======= -->
+    <camera name="eye_side" fovy="72.02" pos="-0.281 0.693 0.988" xyaxes="0.837 -0.547 -0.  0.294 0.449 0.844"/>
+    <!-- <camera name="eye_side" fovy="72.02"  pos="-0.364 0.799 0.801" xyaxes="0.576 -0.817 -0.000 0.191 0.135 0.972"/> -->
+
+
+     <!-- ======= meat_1 ======= -->  
+    <!-- 中心点： -0.1 1.00 0.705   肉 0.02*0.02 -->
+    <body name="meat_1" pos="-0.07 1.03 0.706" quat="0.995465 -0.00017601 -0.0951328 -0.000157941">
+      <!-- <include file="../object/meat.xml"/> -->
+        <joint type="free"/>
+        <inertial pos="0 0 0" mass="0.1" diaginertia="2e-05 2e-05 2e-05" />
+        <geom material="meat_texture" mesh="meat" class="obj_visual"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_0"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_1"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_2"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_3"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_4"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_5"/>
+    </body>
+      
+    <!-- ======= meat_2 ======= -->
+    <body name="meat_2" pos="-0.13 1.03 0.706" quat="0.995465 -0.00017601 -0.0951328 -0.000157941">
+        <joint type="free"/>
+        <inertial pos="0 0 0" mass="0.1" diaginertia="2e-05 2e-05 2e-05" />
+        <geom material="meat_texture" mesh="meat" class="obj_visual"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_0"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_1"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_2"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_3"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_4"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_5"/>
+    </body>
+
+        <!-- ======= meat_3 ======= -->
+    <body name="meat_3" pos="-0.13 0.97 0.706" quat="0.995465 -0.00017601 -0.0951328 -0.000157941">
+        <joint type="free"/>
+        <inertial pos="0 0 0" mass="0.1" diaginertia="2e-05 2e-05 2e-05" />
+        <geom material="meat_texture" mesh="meat" class="obj_visual"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_0"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_1"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_2"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_3"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_4"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_5"/>
+    </body>
+
+        <!-- ======= meat_4 ======= -->
+    <body name="meat_4" pos="-0.07 0.97 0.706" quat="0.995465 -0.00017601 -0.0951328 -0.000157941">
+        <joint type="free"/>
+        <inertial pos="0 0 0" mass="0.1" diaginertia="2e-05 2e-05 2e-05" />
+        <geom material="meat_texture" mesh="meat" class="obj_visual"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_0"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_1"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_2"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_3"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_4"/>
+        <geom type="mesh" rgba="0.8 0.2 0.0 0.0" mesh="meat_part_5"/>
+    </body>
+    
+    <!-- ======= plate_white ======= -->
+    <!-- <body name="plate_white" pos="-0.1 1.0  0.700894">
+      <include file="../object/plate_white.xml"/>
+    </body> -->
+
+    <!-- ======= plate_white ======= -->
+    <body name="plate_white" pos="-0.1 0.8 0.700937">
+      <include file="../object/plate_white.xml"/>
+    </body>
+
+    <!-- <body name="cabinet" pos="0.915 0.58 0.01">
+      <include file="../object/cabinet.xml"/>
+    </body> -->
+
+     <body name="table_60_120" pos="-0.18 1.02 0">
+      <!-- <geom size="0.3 0.6 0.01" pos="0 0 0.69" euler="0 0 1.5708" type="box" condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001" rgba="0.7529 0.6863 0.4235 1"/> -->
+      <geom size="0.3 0.6 0.01" pos="0 0 0.69" euler="0 0 1.5708" type="box" condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001" material="tc_texture"/>
+      <geom size="0.02 0.02 0.34" pos=" 0.55  0.25 0.35" type="box" contype="0" conaffinity="0" rgba="0.15 0.15 0.15 1" />
+      <geom size="0.02 0.02 0.34" pos=" 0.55 -0.25 0.35" type="box" contype="0" conaffinity="0" rgba="0.15 0.15 0.15 1" />
+      <geom size="0.02 0.02 0.34" pos="-0.55  0.25 0.35" type="box" contype="0" conaffinity="0" rgba="0.15 0.15 0.15 1" />
+      <geom size="0.02 0.02 0.34" pos="-0.55 -0.25 0.35" type="box" contype="0" conaffinity="0" rgba="0.15 0.15 0.15 1" />
+    </body>
+
+    <!-- <body name="front_wall" pos="1.1 0.25 0">
+      <geom size="0.015 1 1" pos="0 0 1" type="box" rgba="0 0 0 1"/>
+    </body> -->
+
+    <!-- <body name="back_wall" pos="-1.1 0.35 0">
+      <geom size="1.0 0.44 0.015" pos="0  0.45 1.0" euler="0 1.5708 0" type="box" rgba="1 1 1 1"/>
+      <geom size="1.0 0.44 0.015" pos="0 -0.45 1.0" euler="0 1.5708 0" type="box" rgba="1 1 1 1"/>
+    </body>
+
+    <body name="left_wall" pos="0 1.34 0">
+      <geom size="1.1 0.015 1" pos="0 0 1" type="box" rgba="0 0 0 1"/>
+    </body> -->
+
+
+  </worldbody>
+
+  <equality>
+    <joint joint1='endleft' joint2='endright' polycoef='0 -1 0 0 0 '/>
+  </equality>
+
+  <actuator>
+    <include file="../airbot_play/airbot_play_control.xml"/>
+  </actuator>
+
+  <sensor>
+    <include file="../airbot_play/airbot_play_sensor.xml"/>
+  </sensor>
+
+  <keyframe>
+    <key name="ready" qpos='
+     -0.055 -0.547 0.905 1.599 -1.398 -1.599  0 0 
+     
+     -0.07 1.030   0.706  0.995465 -0.00017601 -0.0951328 -0.000157941 
+     -0.13 1.030   0.706  0.995465 -0.00017601 -0.0951328 -0.000157941 
+     -0.13 0.970   0.706  0.995465 -0.00017601 -0.0951328 -0.000157941 
+     -0.07 0.970   0.708  0.995465 -0.00017601 -0.0951328 -0.000157941 
+      '
+      ctrl="-0.055 -0.547 0.905 1.599 -1.398 -1.599  0"
+    />
+  </keyframe>
+
+</mujoco>

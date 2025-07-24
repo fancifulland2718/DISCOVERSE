@@ -1,0 +1,14 @@
+<mujocoinclude>
+  <asset>
+    <texture type="2d" name="meat_texture" file="object/meat/texture_diffuse.png"/>
+    <material name="meat_texture" texture="meat_texture"/>
+
+    <mesh name="meat" file="object/meat/meat.obj"/>
+    <mesh name="meat_part_0" file="object/meat/part_0.obj"/>
+    <mesh name="meat_part_1" file="object/meat/part_1.obj"/>
+    <mesh name="meat_part_2" file="object/meat/part_2.obj"/>
+    <mesh name="meat_part_3" file="object/meat/part_3.obj"/>
+    <mesh name="meat_part_4" file="object/meat/part_4.obj"/>
+    <mesh name="meat_part_5" file="object/meat/part_5.obj"/>
+  </asset>
+</mujocoinclude>

@@ -151,10 +151,10 @@ if __name__ == "__main__":
         action[6] = sim_node.target_control[6]
 
         obs, _, _, _, _ = sim_node.step(action)
-        imgs = obs.pop("img")
-        for cam_id, img in imgs.items():
-            encoders[cam_id].encode(img, obs["time"])
         if len(obs_lst) < sim_node.mj_data.time * cfg.render_set["fps"]:
+            imgs = obs.pop("img")
+            for cam_id, img in imgs.items():
+                encoders[cam_id].encode(img, obs["time"])
             act_lst.append(action.tolist().copy())
             obs_lst.append(obs)
 

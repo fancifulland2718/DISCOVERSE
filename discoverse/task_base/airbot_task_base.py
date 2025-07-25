@@ -3,7 +3,6 @@ import json
 import fractions
 import av.video
 import glfw
-import shutil
 import mujoco
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -22,7 +21,8 @@ class PyavImageEncoder:
         stream.width = width
         stream.height = height
         stream.pix_fmt = "yuv420p"
-        stream.time_base = fractions.Fraction(1, int(1e9))
+        self._time_base = int(1e6)
+        stream.time_base = fractions.Fraction(1, self._time_base)
         self.container = container
         self.stream = stream
         self.start_time = None
@@ -34,10 +34,10 @@ class PyavImageEncoder:
         if self.start_time is None:
             self.start_time = timestamp
             self.last_time = 0
-            self.container.metadata["comment"] = str({"base_stamp": int(self.start_time * 1e9)})
+            self.container.metadata["comment"] = str({"base_stamp": int(self.start_time * self._time_base)})
         frame = av.VideoFrame.from_ndarray(image, format="rgb24")
         cur_time = timestamp
-        frame.pts = int((cur_time - self.start_time) * 1e9)
+        frame.pts = int((cur_time - self.start_time) * self._time_base)
         frame.time_base = self.stream.time_base
         assert cur_time > self.last_time, f"Time error: {cur_time} <= {self.last_time}"
         self.last_time = cur_time
@@ -45,7 +45,7 @@ class PyavImageEncoder:
             self.container.mux(packet)
 
     def close(self):
-        print(f"Encoded {self._cnt} frames to {self.container.name}")
+        # print(f"Encoded {self._cnt} frames to {self.container.name}")
         if self.container is not None:
             for packet in self.stream.encode():
                 self.container.mux(packet)

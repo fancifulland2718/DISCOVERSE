@@ -145,12 +145,12 @@ if __name__ == "__main__":
         action[6] = sim_node.target_control[6]
 
         obs, _, _, _, _ = sim_node.step(action)
-        imgs = obs.pop('img')
-        for cam_id, img in imgs.items():
-            encoders[cam_id].encode(img, obs["time"])
         if len(obs_lst) < sim_node.mj_data.time * cfg.render_set["fps"]:
+            imgs = obs.pop('img')
             act_lst.append(action.tolist().copy())
             obs_lst.append(obs)
+            for cam_id, img in imgs.items():
+                encoders[cam_id].encode(img, obs["time"])
 
         if stm.state_idx >= stm.max_state_cnt:
             if sim_node.check_success():

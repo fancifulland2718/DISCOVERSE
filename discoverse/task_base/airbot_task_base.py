@@ -27,8 +27,10 @@ class PyavImageEncoder:
         self.stream = stream
         self.start_time = None
         self.last_time = None
+        self._cnt = 0
 
     def encode(self, image: np.ndarray, timestamp: float):
+        self._cnt += 1
         if self.start_time is None:
             self.start_time = timestamp
             self.last_time = 0
@@ -43,10 +45,12 @@ class PyavImageEncoder:
             self.container.mux(packet)
 
     def close(self):
+        print(f"Encoded {self._cnt} frames to {self.container.name}")
         if self.container is not None:
             for packet in self.stream.encode():
                 self.container.mux(packet)
             self.container.close()
+        self.container = None
 
 
 def recoder_airbot_play(save_path, act_lst, obs_lst, cfg: AirbotPlayCfg):

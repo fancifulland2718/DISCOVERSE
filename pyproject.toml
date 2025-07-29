@@ -122,6 +122,7 @@ data-collection = [
     "imagecodecs",
     "pillow>=10.2.0",
     "h5py>=3.10.0",
+    "av"
 ]
 
 # RealSense相机支持

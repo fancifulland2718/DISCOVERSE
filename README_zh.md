@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![论文](https://img.shields.io/badge/Paper-arXiv-red.svg)](https://air-discoverse.github.io/)
+[![论文](https://img.shields.io/badge/Paper-arXiv-red.svg)](https://arxiv.org/pdf/2507.21981)
 [![网站](https://img.shields.io/badge/Website-DISCOVERSE-blue.svg)](https://air-discoverse.github.io/)
 [![许可证](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)

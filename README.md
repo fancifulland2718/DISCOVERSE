@@ -200,8 +200,16 @@ sudo systemctl restart docker
 ### 2. Build Docker Image
 
 - Download pre-built Docker image
-Baidu Netdisk: https://pan.baidu.com/s/1mLC3Hz-m78Y6qFhurwb8VQ?pwd=xmp9
-Currently updated to v1.8.6
+    
+    Baidu Netdisk: https://pan.baidu.com/s/1mLC3Hz-m78Y6qFhurwb8VQ?pwd=xmp9
+    
+    Currently updated to v1.8.6. After downloading the .tar file, use the docker load command to load the docker image.
+    
+    Replace `discoverse_tag.tar` below with the actual downloaded image tar file name.
+
+    ```bash
+    docker load < discoverse_tag.tar
+    ```
 
 - Or build from `Dockerfile`
     ```bash
@@ -222,12 +230,12 @@ docker run -dit --rm --name discoverse \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
     --device /dev/dri \
     discoverse:latest
-# Note: Replace `latest` with the actual docker image tag (e.g., v1.8.5).
+# Note: Replace `latest` with the actual docker image tag (e.g., v1.8.6).
 
 # Set visualization window permissions
 xhost +local:docker
 
-# enter container
+# Enter container terminal
 docker exec -it discoverse bash
 ```
 

@@ -3,13 +3,11 @@ import sys
 import time
 import traceback
 from abc import abstractmethod
-import ctypes
 
 import cv2
 import glfw
 from PIL import Image
 import OpenGL.GL as gl
-from OpenGL.GL import shaders
 
 import mujoco
 import random
@@ -75,13 +73,6 @@ class SimulatorBase:
 
     def __init__(self, config:BaseConfig):
         self.config = config
-        
-        # 初始化OpenGL资源变量
-        self.VAO = 0
-        self.VBO = 0
-        self.EBO = 0
-        self.texture = 0
-        self.shader_program = 0
 
         if self.config.mjcf_file_path.startswith("/"):
             self.mjcf_file = self.config.mjcf_file_path
@@ -127,17 +118,18 @@ class SimulatorBase:
                     raise RuntimeError("无法初始化GLFW")
                 self.glfw_initialized = True
                 
-                # 设置OpenGL版本
-                glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
-                glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
-                glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
-                glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
+                # 设置OpenGL版本和窗口属性
+                glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 2)
+                glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 1)
                 glfw.window_hint(glfw.VISIBLE, True)
 
                 # 如果设置了use_default_window_size，禁用窗口最大化功能
                 if self.use_default_window_size:
+                    # 禁用窗口最大化
                     glfw.window_hint(glfw.MAXIMIZED, False)
+                    # 确保窗口有装饰（标题栏等）
                     glfw.window_hint(glfw.DECORATED, True)
+                    # 允许用户手动调整窗口大小
                     glfw.window_hint(glfw.RESIZABLE, True)
                     print("已禁用窗口最大化功能，但允许调整窗口大小")
 
@@ -156,16 +148,13 @@ class SimulatorBase:
                 glfw.make_context_current(self.window)
                 glfw.swap_interval(1)
 
-                # 设置窗口大小限制
-                glfw.set_window_size_limits(self.window, 320, 240, 
-                                          self.mj_model.vis.global_.offwidth, 
-                                          self.mj_model.vis.global_.offheight)
+                # 设置窗口最大尺寸
+                glfw.set_window_size_limits(self.window, 320, 240, self.mj_model.vis.global_.offwidth, self.mj_model.vis.global_.offheight)
 
-                # 基本OpenGL设置
+                # 初始化OpenGL设置
                 gl.glClearColor(0.0, 0.0, 0.0, 1.0)
-                
-                # 初始化OpenGL资源
-                self._init_modern_gl_resources()
+                gl.glShadeModel(gl.GL_SMOOTH)
+                gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
                 
                 # 设置回调
                 glfw.set_key_callback(self.window, self.on_key)
@@ -177,23 +166,24 @@ class SimulatorBase:
                 if self.use_default_window_size:
                     glfw.set_window_maximize_callback(self.window, self.maximize_callback)
 
-                # 跨平台显示缩放支持
-                if sys.platform == "darwin":  # macOS
+                if sys.platform == "darwin":
                     try:
                         import AppKit
-                        def get_screen_scale(screen_id):
-                            screens = AppKit.NSScreen.screens()
-                            if len(screens) > screen_id:
-                                return screens[screen_id].backingScaleFactor()
-                            else:
-                                return 2.0  # 默认retina缩放
-                        self.screen_scale = get_screen_scale(0)
                     except ImportError:
-                        print("Warning: pyobjc not available for retina display support on macOS")
-                        print("Using default scale. Install with: pip install pyobjc")
-                        self.screen_scale = 2.0  # 默认retina缩放
+                        print("pyobjc is required for retina display support on macOS. Run:")
+                        print(">>> pip install pyobjc")
+                        quit()
+
+                    def get_screen_scale(screen_id):
+                        screens = AppKit.NSScreen.screens()
+                        if len(screens) >= screen_id:
+                            return screens[screen_id].backingScaleFactor()
+                        else:
+                            return None
+                    self.screen_scale = get_screen_scale(0)
+                    gl.glPixelZoom(self.screen_scale, self.screen_scale)
                 else:
-                    self.screen_scale = 1.0
+                    self.screen_scale = 1
 
                 # 注册清理函数
                 import atexit
@@ -211,112 +201,8 @@ class SimulatorBase:
         mujoco.mj_forward(self.mj_model, self.mj_data)
 
     def maximize_callback(self, window, maximized):
-        """窗口最大化回调，用于use_default_window_size功能"""
         if self.use_default_window_size and maximized:
             glfw.restore_window(window)
-
-    def _init_modern_gl_resources(self):
-        """初始化OpenGL资源用于简单图像显示"""
-        try:
-            # 检查OpenGL上下文
-            if not glfw.get_current_context():
-                raise RuntimeError("OpenGL上下文未激活")
-            
-            # 创建简单的全屏四边形顶点数据
-            vertices = np.array([
-                -1.0, -1.0,  0.0, 0.0,  # 左下
-                 1.0, -1.0,  1.0, 0.0,  # 右下
-                 1.0,  1.0,  1.0, 1.0,  # 右上
-                -1.0,  1.0,  0.0, 1.0   # 左上
-            ], dtype=np.float32)
-
-            indices = np.array([0, 1, 2, 2, 3, 0], dtype=np.uint32)
-
-            # 创建VAO, VBO, EBO
-            self.VAO = gl.glGenVertexArrays(1)
-            self.VBO = gl.glGenBuffers(1)
-            self.EBO = gl.glGenBuffers(1)
-
-            gl.glBindVertexArray(self.VAO)
-            gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.VBO)
-            gl.glBufferData(gl.GL_ARRAY_BUFFER, vertices.nbytes, vertices, gl.GL_STATIC_DRAW)
-            gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self.EBO)
-            gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER, indices.nbytes, indices, gl.GL_STATIC_DRAW)
-
-            # 设置顶点属性
-            gl.glVertexAttribPointer(0, 2, gl.GL_FLOAT, gl.GL_FALSE, 16, ctypes.c_void_p(0))
-            gl.glEnableVertexAttribArray(0)
-            gl.glVertexAttribPointer(1, 2, gl.GL_FLOAT, gl.GL_FALSE, 16, ctypes.c_void_p(8))
-            gl.glEnableVertexAttribArray(1)
-
-            # 简化的着色器
-            vertex_shader_source = """
-            #version 330 core
-            layout (location = 0) in vec2 aPos;
-            layout (location = 1) in vec2 aTexCoord;
-            out vec2 TexCoord;
-            void main() {
-                gl_Position = vec4(aPos, 0.0, 1.0);
-                TexCoord = aTexCoord;
-            }
-            """
-
-            fragment_shader_source = """
-            #version 330 core
-            out vec4 FragColor;
-            in vec2 TexCoord;
-            uniform sampler2D ourTexture;
-            void main() {
-                FragColor = texture(ourTexture, TexCoord);
-            }
-            """
-
-            # 编译着色器程序
-            vertex_shader = shaders.compileShader(vertex_shader_source, gl.GL_VERTEX_SHADER)
-            fragment_shader = shaders.compileShader(fragment_shader_source, gl.GL_FRAGMENT_SHADER)
-            self.shader_program = shaders.compileProgram(vertex_shader, fragment_shader)
-
-            # 创建纹理
-            self.texture = gl.glGenTextures(1)
-            gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture)
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-
-            # 解绑
-            gl.glBindVertexArray(0)
-            gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
-                
-        except Exception as e:
-            print(f"初始化OpenGL资源失败: {e}")
-            self._cleanup_opengl_resources()
-            raise
-
-    def _render_image_modern_gl(self, img_vis):
-        """使用OpenGL渲染图像到窗口"""
-        if img_vis is None or not hasattr(self, 'VAO') or not self.VAO:
-            return
-            
-        try:
-            # 翻转图像（OpenGL坐标系）
-            img_vis = img_vis[::-1]
-            img_vis = np.ascontiguousarray(img_vis)
-            height, width = img_vis.shape[:2]
-            
-            # 更新纹理
-            gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture)
-            gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGB, width, height, 0, gl.GL_RGB, gl.GL_UNSIGNED_BYTE, img_vis.tobytes())
-            
-            # 渲染
-            gl.glUseProgram(self.shader_program)
-            gl.glBindVertexArray(self.VAO)
-            gl.glDrawElements(gl.GL_TRIANGLES, 6, gl.GL_UNSIGNED_INT, None)
-            gl.glBindVertexArray(0)
-            gl.glUseProgram(0)
-                
-        except Exception as e:
-            print(f"渲染错误: {e}")
 
     def object_pose(self, body_name):
         """获取物体的位姿（位置xyz和朝向wxyz）"""
@@ -363,42 +249,15 @@ class SimulatorBase:
                 self.config.obs_depth_cam_id = []
         
             try:
-                # 跨平台屏幕信息检测
-                screen_width, screen_height = 1920, 1080  # 默认值
-                
-                if sys.platform == "darwin":  # macOS
-                    try:
-                        import AppKit
-                        screens = AppKit.NSScreen.screens()
-                        if screens:
-                            main_screen = screens[0]
-                            frame = main_screen.frame()
-                            screen_width = int(frame.size.width)
-                            screen_height = int(frame.size.height)
-                    except ImportError:
-                        print("Warning: pyobjc not available for screen detection on macOS")
-                        self.use_default_window_size = True
-                elif sys.platform.startswith("linux"):  # Ubuntu/Linux
-                    try:
-                        import screeninfo
-                        monitors = screeninfo.get_monitors()
-                        for m in monitors:
-                            if m.is_primary:
-                                screen_width, screen_height = m.width, m.height
-                                break
-                    except ImportError:
-                        print("Warning: screeninfo not available for screen detection on Linux")
-                        self.use_default_window_size = True
-                    except Exception as e:
-                        print(f"screeninfo error: {e}, using default screen size")
-                        self.use_default_window_size = True
-                else:
-                    # Windows或其他系统
-                    self.use_default_window_size = True
-                    
+                import screeninfo
+                monitors = screeninfo.get_monitors()
+                for m in monitors:
+                    if m.is_primary:
+                        screen_width, screen_height = m.width, m.height
+                        break
             except Exception as e:
                 screen_width, screen_height = 1920, 1080
-                print(f"Screen detection error: {e}, using default screen size: {screen_width}x{screen_height}")
+                print(f"screeninfo error: {e}, using default screen size: {screen_width}x{screen_height}")
                 self.use_default_window_size = True
 
             self.mj_model.vis.global_.offwidth = max(self.mj_model.vis.global_.offwidth, screen_width)
@@ -543,7 +402,9 @@ class SimulatorBase:
                 gl.glClear(gl.GL_COLOR_BUFFER_BIT)
 
                 if img_vis is not None:
-                    self._render_image_modern_gl(img_vis)
+                    img_vis = img_vis[::-1]
+                    img_vis = np.ascontiguousarray(img_vis)
+                    gl.glDrawPixels(img_vis.shape[1], img_vis.shape[0], gl.GL_RGB, gl.GL_UNSIGNED_BYTE, img_vis.tobytes())
                 
                 glfw.swap_buffers(self.window)
                 glfw.poll_events()
@@ -782,39 +643,17 @@ class SimulatorBase:
 
         return camera_position, Rotation.from_matrix(rotation_matrix).as_quat()[[3,0,1,2]]
 
-    def _cleanup_opengl_resources(self):
-        """清理OpenGL资源"""
-        try:
-            if hasattr(self, 'window') and self.window and glfw.get_current_context() == self.window:
-                if hasattr(self, 'VAO') and self.VAO:
-                    gl.glDeleteVertexArrays(1, [self.VAO])
-                    self.VAO = 0
-                if hasattr(self, 'VBO') and self.VBO:
-                    gl.glDeleteBuffers(1, [self.VBO])
-                    self.VBO = 0
-                if hasattr(self, 'EBO') and self.EBO:
-                    gl.glDeleteBuffers(1, [self.EBO])
-                    self.EBO = 0
-                if hasattr(self, 'texture') and self.texture:
-                    gl.glDeleteTextures(1, [self.texture])
-                    self.texture = 0
-                if hasattr(self, 'shader_program') and self.shader_program:
-                    gl.glDeleteProgram(self.shader_program)
-                    self.shader_program = 0
-        except Exception:
-            pass
-
     def _cleanup_before_exit(self):
-        """程序退出前的清理工作"""
+        """在Python退出前执行的清理函数"""
         try:
-            self._cleanup_opengl_resources()
-            
+            # 如果GLFW上下文有效，先清理Mujoco渲染器
             if hasattr(self, 'renderer'):
                 try:
                     del self.renderer
                 except Exception:
                     pass
 
+            # 然后清理GLFW资源
             if hasattr(self, 'window') and self.window is not None:
                 try:
                     glfw.destroy_window(self.window)
@@ -822,6 +661,7 @@ class SimulatorBase:
                     pass
                 self.window = None
             
+            # 最后终止GLFW
             if hasattr(self, 'glfw_initialized') and self.glfw_initialized:
                 try:
                     glfw.terminate()

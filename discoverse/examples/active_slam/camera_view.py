@@ -16,6 +16,8 @@ from typing import List, Tuple
 from discoverse.envs import SimulatorBase
 from discoverse.utils.base_config import BaseConfig
 from discoverse.utils import interpolate_camera_poses
+from discoverse import DISCOVERSE_ASSETS_DIR
+
 @dataclass
 class CameraViewpoint:
     position: Tuple[float, float, float]  # xyz
@@ -410,7 +412,7 @@ if __name__ == "__main__":
 
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='相机环境程序')
-    parser.add_argument('--gsply', type=str, required=True, help='高斯渲染模型文件路径(.ply)')
+    parser.add_argument('--gsply', type=str, help='高斯渲染模型文件路径(.ply)', default=os.path.join(DISCOVERSE_ASSETS_DIR, "3dgs/scene/drobotics_canteen/point_cloud.ply"))
     parser.add_argument('--mesh', type=str, default=None, help='场景网格文件路径(.obj)')
     parser.add_argument('--max-depth', type=float, default=5.0, help='最大渲染深度')
     parser.add_argument('--camera-distance', type=float, default=0.1, help='双目相机基线距离')

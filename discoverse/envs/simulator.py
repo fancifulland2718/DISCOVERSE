@@ -3,11 +3,14 @@ import sys
 import time
 import traceback
 from abc import abstractmethod
+import ctypes
 
 import cv2
 import glfw
 from PIL import Image
 import OpenGL.GL as gl
+from OpenGL.GL import shaders
+import OpenGL.arrays.vbo as vbo
 
 import mujoco
 import random
@@ -119,8 +122,10 @@ class SimulatorBase:
                 self.glfw_initialized = True
                 
                 # 设置OpenGL版本和窗口属性
-                glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 2)
-                glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 1)
+                glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
+                glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
+                glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+                glfw.window_hint(glfw.OPENGL_FORWARD_COMPAT, True)
                 glfw.window_hint(glfw.VISIBLE, True)
 
                 # 如果设置了use_default_window_size，禁用窗口最大化功能
@@ -153,8 +158,10 @@ class SimulatorBase:
 
                 # 初始化OpenGL设置
                 gl.glClearColor(0.0, 0.0, 0.0, 1.0)
-                gl.glShadeModel(gl.GL_SMOOTH)
                 gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
+                
+                # 创建用于渲染图像的现代OpenGL资源
+                self._init_modern_gl_resources()
                 
                 # 设置回调
                 glfw.set_key_callback(self.window, self.on_key)
@@ -181,7 +188,7 @@ class SimulatorBase:
                         else:
                             return None
                     self.screen_scale = get_screen_scale(0)
-                    gl.glPixelZoom(self.screen_scale, self.screen_scale)
+                    # 注意：在现代OpenGL中不再使用glPixelZoom，缩放由着色器处理
                 else:
                     self.screen_scale = 1
 
@@ -203,6 +210,129 @@ class SimulatorBase:
     def maximize_callback(self, window, maximized):
         if self.use_default_window_size and maximized:
             glfw.restore_window(window)
+
+    def _init_modern_gl_resources(self):
+        """初始化现代OpenGL资源用于图像渲染"""
+        
+        # 顶点着色器代码
+        vertex_shader_source = """
+        #version 330 core
+        layout (location = 0) in vec2 aPos;
+        layout (location = 1) in vec2 aTexCoord;
+
+        out vec2 TexCoord;
+
+        void main()
+        {
+            gl_Position = vec4(aPos.x, aPos.y, 0.0, 1.0);
+            TexCoord = aTexCoord;
+        }
+        """
+
+        # 片段着色器代码
+        fragment_shader_source = """
+        #version 330 core
+        out vec4 FragColor;
+
+        in vec2 TexCoord;
+
+        uniform sampler2D ourTexture;
+
+        void main()
+        {
+            FragColor = texture(ourTexture, TexCoord);
+        }
+        """
+
+        # 编译着色器
+        vertex_shader = shaders.compileShader(vertex_shader_source, gl.GL_VERTEX_SHADER)
+        fragment_shader = shaders.compileShader(fragment_shader_source, gl.GL_FRAGMENT_SHADER)
+        
+        # 创建着色器程序
+        self.shader_program = shaders.compileProgram(vertex_shader, fragment_shader)
+
+        # 定义全屏四边形的顶点数据
+        vertices = np.array([
+            # 位置      # 纹理坐标
+            -1.0, -1.0,  0.0, 0.0,  # 左下
+             1.0, -1.0,  1.0, 0.0,  # 右下
+             1.0,  1.0,  1.0, 1.0,  # 右上
+            -1.0,  1.0,  0.0, 1.0   # 左上
+        ], dtype=np.float32)
+
+        indices = np.array([
+            0, 1, 2,   # 第一个三角形
+            2, 3, 0    # 第二个三角形
+        ], dtype=np.uint32)
+
+        # 创建VAO, VBO, EBO
+        self.VAO = gl.glGenVertexArrays(1)
+        self.VBO = gl.glGenBuffers(1)
+        self.EBO = gl.glGenBuffers(1)
+
+        # 绑定VAO
+        gl.glBindVertexArray(self.VAO)
+
+        # 绑定VBO并传输顶点数据
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, self.VBO)
+        gl.glBufferData(gl.GL_ARRAY_BUFFER, vertices.nbytes, vertices, gl.GL_STATIC_DRAW)
+
+        # 绑定EBO并传输索引数据
+        gl.glBindBuffer(gl.GL_ELEMENT_ARRAY_BUFFER, self.EBO)
+        gl.glBufferData(gl.GL_ELEMENT_ARRAY_BUFFER, indices.nbytes, indices, gl.GL_STATIC_DRAW)
+
+        # 配置顶点属性
+        # 位置属性
+        gl.glVertexAttribPointer(0, 2, gl.GL_FLOAT, gl.GL_FALSE, 4 * 4, ctypes.c_void_p(0))
+        gl.glEnableVertexAttribArray(0)
+
+        # 纹理坐标属性
+        gl.glVertexAttribPointer(1, 2, gl.GL_FLOAT, gl.GL_FALSE, 4 * 4, ctypes.c_void_p(2 * 4))
+        gl.glEnableVertexAttribArray(1)
+
+        # 创建纹理
+        self.texture = gl.glGenTextures(1)
+        gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture)
+        
+        # 设置纹理参数
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_CLAMP_TO_EDGE)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_CLAMP_TO_EDGE)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
+        gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+
+        # 解绑
+        gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
+        gl.glBindVertexArray(0)
+
+    def _render_image_modern_gl(self, img_vis):
+        """使用现代OpenGL渲染图像"""
+        if img_vis is None:
+            return
+            
+        # 翻转图像（OpenGL纹理坐标系与图像坐标系不同）
+        img_vis = img_vis[::-1]
+        img_vis = np.ascontiguousarray(img_vis)
+        
+        height, width = img_vis.shape[:2]
+        
+        # 更新纹理数据
+        gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture)
+        gl.glTexImage2D(gl.GL_TEXTURE_2D, 0, gl.GL_RGB, width, height, 0, gl.GL_RGB, gl.GL_UNSIGNED_BYTE, img_vis.tobytes())
+        
+        # 使用着色器程序
+        gl.glUseProgram(self.shader_program)
+        
+        # 绑定纹理
+        gl.glActiveTexture(gl.GL_TEXTURE0)
+        gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture)
+        
+        # 绑定VAO并绘制
+        gl.glBindVertexArray(self.VAO)
+        gl.glDrawElements(gl.GL_TRIANGLES, 6, gl.GL_UNSIGNED_INT, None)
+        
+        # 解绑
+        gl.glBindVertexArray(0)
+        gl.glUseProgram(0)
 
     def object_pose(self, body_name):
         """获取物体的位姿（位置xyz和朝向wxyz）"""
@@ -402,9 +532,7 @@ class SimulatorBase:
                 gl.glClear(gl.GL_COLOR_BUFFER_BIT)
 
                 if img_vis is not None:
-                    img_vis = img_vis[::-1]
-                    img_vis = np.ascontiguousarray(img_vis)
-                    gl.glDrawPixels(img_vis.shape[1], img_vis.shape[0], gl.GL_RGB, gl.GL_UNSIGNED_BYTE, img_vis.tobytes())
+                    self._render_image_modern_gl(img_vis)
                 
                 glfw.swap_buffers(self.window)
                 glfw.poll_events()
@@ -646,7 +774,27 @@ class SimulatorBase:
     def _cleanup_before_exit(self):
         """在Python退出前执行的清理函数"""
         try:
-            # 如果GLFW上下文有效，先清理Mujoco渲染器
+            # 如果GLFW上下文有效，先清理现代OpenGL资源
+            if hasattr(self, 'window') and self.window is not None:
+                try:
+                    glfw.make_context_current(self.window)
+                    
+                    # 清理现代OpenGL资源
+                    if hasattr(self, 'VAO'):
+                        gl.glDeleteVertexArrays(1, [self.VAO])
+                    if hasattr(self, 'VBO'):
+                        gl.glDeleteBuffers(1, [self.VBO])
+                    if hasattr(self, 'EBO'):
+                        gl.glDeleteBuffers(1, [self.EBO])
+                    if hasattr(self, 'texture'):
+                        gl.glDeleteTextures(1, [self.texture])
+                    if hasattr(self, 'shader_program'):
+                        gl.glDeleteProgram(self.shader_program)
+                        
+                except Exception:
+                    pass
+            
+            # 清理Mujoco渲染器
             if hasattr(self, 'renderer'):
                 try:
                     del self.renderer

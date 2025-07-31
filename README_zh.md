@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![论文](https://img.shields.io/badge/Paper-arXiv-red.svg)](https://air-discoverse.github.io/)
+[![论文](https://img.shields.io/badge/Paper-arXiv-red.svg)](https://arxiv.org/pdf/2507.21981)
 [![网站](https://img.shields.io/badge/Website-DISCOVERSE-blue.svg)](https://air-discoverse.github.io/)
 [![许可证](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
@@ -179,28 +179,63 @@ python scripts/check_installation.py --verbose # 详细信息
 
 ## 🐳 Docker快速开始
 
-开始使用DISCOVERSE的最快方式：
-
+### 1. 安装NVIDIA Container Toolkit：
 ```bash
-# 下载预构建Docker镜像
-# 百度网盘：https://pan.baidu.com/s/1mLC3Hz-m78Y6qFhurwb8VQ?pwd=xmp9
+# 设置软件源
+distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
+    && curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add - \
+    && curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
 
-# 或从源码构建（推荐）
-git clone https://github.com/TATP-233/DISCOVERSE.git
-cd DISCOVERSE
-python scripts/setup_submodules.py --all  # Docker镜像需要所有submodules
-docker build -t discoverse:latest .
+# 更新并安装
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit nvidia-docker2
 
-# 使用GPU支持运行
-docker run -it --rm --gpus all \
-    -e DISPLAY=$DISPLAY \
-    -v /tmp/.X11-unix:/tmp/.X11-unix \
-    -v $(pwd):/workspace \
-    discoverse:latest
+# 重启Docker服务
+sudo systemctl restart docker
 ```
 
-详细的Docker设置请参见我们的[Docker部署指南](doc/docker.md)。
+### 2. 构建Docker镜像
 
+- 下载预构建Docker镜像
+    
+    百度网盘：https://pan.baidu.com/s/1mLC3Hz-m78Y6qFhurwb8VQ?pwd=xmp9
+    
+    目前更新至v1.8.6，下载.tar文件之后，使用docker load指令加载docker image
+    
+    将下面的`discoverse_tag.tar`替换为实际下载的镜像tar文件名。
+
+    ```bash
+    docker load < discoverse_tag.tar
+    ```
+
+- 或者 从`docker file`构建
+    ```bash
+    git clone https://github.com/TATP-233/DISCOVERSE.git
+    cd DISCOVERSE
+    python scripts/setup_submodules.py --module gaussian-rendering
+    docker build -f docker/Dockerfile -t discoverse:latest .
+    ```
+    `Dockerfile.vnc`是支持 VNC 远程访问的配置版本。它在`docker/Dockerfile`的基础上添加了 VNC 服务器支持，允许你通过 VNC 客户端远程访问容器的图形界面。这对于远程开发或在没有本地显示服务器的环境中特别有用。如果需要，将`docker build -f docker/Dockerfile -t discoverse:latest .`改为`docker build -f docker/Dockerfile.vnc -t discoverse:latest .`
+
+
+### 3. 创建Docker容器
+
+```
+# 使用GPU支持运行
+docker run -dit --rm --name discoverse \
+    --gpus all \
+    -e DISPLAY=$DISPLAY \
+    -v /tmp/.X11-unix:/tmp/.X11-unix \
+    --device /dev/dri \
+    discoverse:latest
+# 注意：把`latest`修改成实际的docker image tag (例如v1.8.6)。
+
+# 设置可视化窗口权限
+xhost +local:docker
+
+# 进入容器终端
+docker exec -it discoverse bash
+```
 
 ## 📷 高保真渲染设置
 

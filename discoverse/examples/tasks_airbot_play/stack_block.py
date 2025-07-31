@@ -11,8 +11,9 @@ from discoverse.envs import make_env
 from discoverse.robots import AirbotPlayIK
 from discoverse import DISCOVERSE_ROOT_DIR, DISCOVERSE_ASSETS_DIR
 from discoverse.robots_env.airbot_play_base import AirbotPlayCfg
-from discoverse.utils import get_body_tmat, get_site_tmat, step_func, SimpleStateMachine
-from discoverse.task_base import AirbotPlayTaskBase, recoder_airbot_play, batch_encode_videos, copypy2
+from discoverse.utils import get_body_tmat, step_func, SimpleStateMachine
+from discoverse.task_base import AirbotPlayTaskBase, recoder_airbot_play, copypy2
+from discoverse.task_base.airbot_task_base import PyavImageEncoder
 
 class SimNode(AirbotPlayTaskBase):
     def __init__(self, config: AirbotPlayCfg):
@@ -23,20 +24,15 @@ class SimNode(AirbotPlayTaskBase):
         # 随机 block_green位置
         flag_position = False
         while not flag_position:
-            self.mj_data.qpos[self.nj+1+0] += 2.*(np.random.random() - 0.5) * 0.08
-            self.mj_data.qpos[self.nj+1+1] += 2.*(np.random.random() - 0.5) * 0.06
 
-            # 随机 block_red位置位置
-            self.mj_data.qpos[self.nj+1+7+0] += 2.*(np.random.random() - 0.5) * 0.08
-            self.mj_data.qpos[self.nj+1+7+1] += 2.*(np.random.random() - 0.5) * 0.06
+            self.object_pose("block_red")[:2] += 2.*(np.random.random() - 0.5) * np.array([0.08, 0.06])
+            self.object_pose("block_green")[:2] += 2.*(np.random.random() - 0.5) * np.array([0.08, 0.06])
+            self.object_pose("block_blue")[:2] += 2.*(np.random.random() - 0.5) * np.array([0.08, 0.06])
 
-            # 随机 block_red位置位置
-            self.mj_data.qpos[self.nj+1+14+0] += 2.*(np.random.random() - 0.5) * 0.08
-            self.mj_data.qpos[self.nj+1+14+1] += 2.*(np.random.random() - 0.5) * 0.06
-
-            position_list = np.array([[self.mj_data.qpos[self.nj+1+0], self.mj_data.qpos[self.nj+1+1]], 
-                         [self.mj_data.qpos[self.nj+1+7+0], self.mj_data.qpos[self.nj+1+7+1]], 
-                         [self.mj_data.qpos[self.nj+1+14+0], self.mj_data.qpos[self.nj+1+14+1]]])
+            position_list = np.array([
+                self.object_pose("block_red")[:2], 
+                self.object_pose("block_green")[:2], 
+                self.object_pose("block_blue")[:2]])
             
             flag_position = self.check_position(position_list, 0.03)
 
@@ -47,17 +43,19 @@ class SimNode(AirbotPlayTaskBase):
         # camera.quat[:] = Rotation.from_euler("xyz", euler, degrees=False).as_quat()[[3,0,1,2]]
 
     def check_success(self):
-        tmat_block = get_body_tmat(self.mj_data, "block_green")
-        tmat_bowl = get_body_tmat(self.mj_data, "block_blue")
-        return (abs(tmat_bowl[2, 2]) > 0.99) and np.hypot(tmat_block[0, 3] - tmat_bowl[0, 3], tmat_block[1, 3] - tmat_bowl[1, 3]) < 0.02
+        tmat_block_green = get_body_tmat(self.mj_data, "block_green")
+        tmat_block_blue = get_body_tmat(self.mj_data, "block_blue")
+        tmat_block_red = get_body_tmat(self.mj_data, "block_red")
+        return (abs(tmat_block_blue[2, 2]) > 0.99) and \
+            np.hypot(tmat_block_green[0, 3] - tmat_block_blue[0, 3], tmat_block_green[1, 3] - tmat_block_blue[1, 3]) < 0.02 and \
+            np.hypot(tmat_block_red[0, 3] - tmat_block_blue[0, 3], tmat_block_red[1, 3] - tmat_block_blue[1, 3]) < 0.02
 
     def check_position(self, position_list, tolerance):
         for i in range(len(position_list)-1):
             if i < len(position_list) - 1:
                 res = np.linalg.norm(position_list[i] - position_list[i+1:], axis=1)
-            else :
+            else:
                 res = np.linalg.norm(position_list[i] - position_list[i+1])
-            print(res)
             if np.any(res < tolerance):
                 return False
         return True
@@ -86,7 +84,8 @@ cfg.render_set   = {
     "width"  : 448,
     "height" : 448
 }
-cfg.obs_rgb_cam_id = [0, 1]
+# cfg.obs_rgb_cam_id = [0, 1]
+cfg.obs_rgb_cam_id = [0]
 cfg.save_mjb_and_task_config = True
 
 if __name__ == "__main__":
@@ -105,6 +104,7 @@ if __name__ == "__main__":
     if args.auto:
         cfg.headless = True
         cfg.sync = False
+    cfg.sync = False
     cfg.use_gaussian_renderer = args.use_gs
 
     save_dir = os.path.join(DISCOVERSE_ROOT_DIR, "data", os.path.splitext(os.path.basename(__file__))[0])
@@ -126,7 +126,6 @@ if __name__ == "__main__":
     max_time = 12.0 # seconds
     
     action = np.zeros(7)
-    video_tasks = []
 
     move_speed = 0.75
     sim_node.reset()
@@ -136,6 +135,9 @@ if __name__ == "__main__":
             stm.reset()
             action[:] = sim_node.target_control[:]
             act_lst, obs_lst = [], []
+            save_path = os.path.join(save_dir, "{:03d}".format(data_idx))
+            os.makedirs(save_path, exist_ok=True)
+            encoders = {cam_id: PyavImageEncoder(20, cfg.render_set["width"], cfg.render_set["height"], save_path, cam_id) for cam_id in cfg.obs_rgb_cam_id}
 
         try:
             if stm.trigger():
@@ -225,17 +227,18 @@ if __name__ == "__main__":
         action[6] = sim_node.target_control[6]
 
         obs, _, _, _, _ = sim_node.step(action)
-
         if len(obs_lst) < sim_node.mj_data.time * cfg.render_set["fps"]:
+            imgs = obs.pop('img')
+            for cam_id, img in imgs.items():
+                encoders[cam_id].encode(img, obs["time"])
             act_lst.append(action.tolist().copy())
             obs_lst.append(obs)
 
         if stm.state_idx >= stm.max_state_cnt:
+            for encoder in encoders.values():
+                encoder.close()
             if sim_node.check_success():
-                save_path = os.path.join(save_dir, "{:03d}".format(data_idx))
-                tasks = recoder_airbot_play(save_path, act_lst, obs_lst, cfg)
-                video_tasks.extend(tasks)
-
+                recoder_airbot_play(save_path, act_lst, obs_lst, cfg)
                 data_idx += 1
                 print("\r{:4}/{:4} ".format(data_idx, data_set_size), end="")
                 if data_idx >= data_set_size:
@@ -244,7 +247,3 @@ if __name__ == "__main__":
                 print(f"{data_idx} Failed")
 
             sim_node.reset()
-
-    if video_tasks:
-        max_workers = min(4, max(2, os.cpu_count() // 2))
-        batch_encode_videos(video_tasks, max_workers=max_workers)

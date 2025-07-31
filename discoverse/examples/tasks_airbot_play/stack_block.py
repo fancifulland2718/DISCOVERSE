@@ -77,8 +77,7 @@ cfg.render_set   = {
     "width"  : 448,
     "height" : 448
 }
-# cfg.obs_rgb_cam_id = [0, 1]
-cfg.obs_rgb_cam_id = [0]
+cfg.obs_rgb_cam_id = [0, 1]
 cfg.save_mjb_and_task_config = True
 
 if __name__ == "__main__":
@@ -95,7 +94,7 @@ if __name__ == "__main__":
     if args.auto:
         cfg.headless = True
         cfg.sync = False
-    cfg.sync = False
+
     cfg.use_gaussian_renderer = args.use_gs
 
     save_dir = os.path.join(DISCOVERSE_ROOT_DIR, "data", os.path.splitext(os.path.basename(__file__))[0])

@@ -126,7 +126,7 @@ if __name__ == "__main__":
             act_lst, obs_lst = [], []
             save_path = os.path.join(save_dir, "{:03d}".format(data_idx))
             os.makedirs(save_path, exist_ok=True)
-            encoders = {cam_id: PyavImageEncoder(20, cfg.render_set["width"], cfg.render_set["height"], save_path, cam_id) for cam_id in cfg.obs_rgb_cam_id}
+            encoders = {cam_id: PyavImageEncoder(cfg.render_set["width"], cfg.render_set["height"], save_path, cam_id) for cam_id in cfg.obs_rgb_cam_id}
         try:
             if stm.trigger(): 
                 if stm.state_idx == 0: # 伸到杯子前

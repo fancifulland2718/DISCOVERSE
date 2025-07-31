@@ -132,7 +132,7 @@ if __name__ == "__main__":
             act_lst, obs_lst = [], []
             save_path = os.path.join(save_dir, "{:03d}".format(data_idx))
             os.makedirs(save_path, exist_ok=True)
-            encoders = {cam_id: PyavImageEncoder(20, cfg.render_set["width"], cfg.render_set["height"], save_path, cam_id) for cam_id in cfg.obs_rgb_cam_id}
+            encoders = {cam_id: PyavImageEncoder(cfg.render_set["width"], cfg.render_set["height"], save_path, cam_id) for cam_id in cfg.obs_rgb_cam_id}
         try:
             if stm.trigger(): 
                 if stm.state_idx == 0: # 伸到杯子前
@@ -201,15 +201,17 @@ if __name__ == "__main__":
             obs_lst.append(obs)
 
         if stm.state_idx >= stm.max_state_cnt:
+            for encoder in encoders.values():
+                encoder.close()
             if sim_node.check_success():
                 recoder_airbot_play(save_path, act_lst, obs_lst, cfg)
-                for encoder in encoders.values():
-                    encoder.close()
                 data_idx += 1
                 print("\r{:4}/{:4} ".format(data_idx, data_set_size), end="")
                 if data_idx >= data_set_size:
                     break
             else:
                 print(f"{data_idx} Failed")
+                for encoder in encoders.values():
+                    encoder.remove_av_file()
 
             sim_node.reset()

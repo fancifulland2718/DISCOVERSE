@@ -297,14 +297,3 @@ objects:
     color: "blue"
     initial_position: "fixed"
     role: "base"  # 作为堆叠的底座
-
-# ============== 执行配置 ==============
-execution:
-  max_time: 12.0          # 最大执行时间（秒）
-  max_states: 18          # 最大状态数
-  move_speed: 0.75        # 移动速度
-  gripper_force: 1.0      # 夹爪力度
-  ik_tolerance:
-    position: 0.01        # 位置容差
-    orientation: 0.05     # 姿态容差
-    max_iterations: 50    # 最大迭代次数

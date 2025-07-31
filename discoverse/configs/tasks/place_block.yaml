@@ -17,7 +17,6 @@ runtime_parameters:
   final_height: 0.04                   # 最终下降高度
 
 # ============== 场景随机化配置 ==============
-# ============== 场景随机化配置 ==============
 randomization:
   # 物体随机化
   objects:

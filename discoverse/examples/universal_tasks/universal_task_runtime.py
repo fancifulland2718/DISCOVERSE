@@ -56,7 +56,7 @@ class UniversalRuntimeTaskExecutor:
 
         self.mujoco_ctrl_dim = mj_model.nu
         self.move_speed = 0.75  # 控制速度
-        self.max_time = 10.0  # 最大执行时间
+        self.max_time = 15.0  # 最大执行时间
 
         self.task.randomizer.set_viewer(viewer)
 
@@ -155,7 +155,7 @@ class UniversalRuntimeTaskExecutor:
             traceback.print_exc()
             return False
     
-    def step(self):
+    def step(self, decimation=5):
         """单步执行 - 高频主循环"""
         try:
             if self.stm.trigger():
@@ -197,7 +197,8 @@ class UniversalRuntimeTaskExecutor:
             
             self.mj_data.ctrl[:self.mujoco_ctrl_dim] = self.action[:self.mujoco_ctrl_dim]
             
-            mujoco.mj_step(self.mj_model, self.mj_data)
+            for _ in range(decimation):
+                mujoco.mj_step(self.mj_model, self.mj_data)
 
             return True
             
@@ -372,7 +373,6 @@ def main(robot_name="airbot_play", task_name="place_block", sync=False, once=Fal
     # 创建通用运行时执行器
     try:
         executor = UniversalRuntimeTaskExecutor(task, viewer, mj_model, mj_data, robot_name, sync)
-
 
         task_count = 0
        

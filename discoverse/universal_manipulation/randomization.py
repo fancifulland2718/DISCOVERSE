@@ -74,18 +74,8 @@ class SceneRandomizer:
         # 随机化物体 - 检查激活状态
         if 'objects' in randomization_config:
             objects_config = randomization_config['objects']
-            # 如果objects是一个字典且包含activate字段
-            if isinstance(objects_config, dict) and 'activate' in objects_config:
-                if objects_config.get('activate', True):  # 默认激活
-                    # 如果有objects列表，则使用它；否则跳过
-                    if 'objects' in objects_config:
-                        self._randomize_objects(objects_config['objects'], max_attempts)
-                    else:
-                        print("⚠️ objects配置中未找到具体物体列表")
-                else:
-                    print("📋 物体随机化已禁用")
-            # 如果objects是一个列表（旧格式）
-            elif isinstance(objects_config, list):
+            # 如果objects是一个列表
+            if isinstance(objects_config, list):
                 self._randomize_objects(objects_config, max_attempts)
             else:
                 print("⚠️ 无效的objects配置格式")

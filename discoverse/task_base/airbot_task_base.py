@@ -45,7 +45,7 @@ class PyavImageEncoder:
             self.container.mux(packet)
 
     def close(self):
-        print(f"Encoded {self._cnt} frames to {self.container.name}")
+        # print(f"Encoded {self._cnt} frames to {self.container.name}")
         if self.container is not None:
             for packet in self.stream.encode():
                 self.container.mux(packet)
@@ -69,7 +69,7 @@ def recoder_airbot_play(save_path, act_lst, obs_lst, cfg: AirbotPlayCfg):
                 "jq" : jq,},
             "act"  : act_lst,
         }, fp)
-    print(f"Saved data to {save_path}")
+    # print(f"Saved data to {save_path}")
 
 
 class AirbotPlayTaskBase(AirbotPlayBase):

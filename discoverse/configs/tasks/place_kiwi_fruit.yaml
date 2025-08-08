@@ -28,19 +28,15 @@ randomization:
   # 物体随机化
   objects:
     - name: "kiwi"
-      position:
-        offset_range: [0.2, 0.2, 0.0]  # X轴±8cm, Y轴±3cm，参考原代码
-        bounds: [[-0.20, 0.10], [0.85, 1.15], [0.705, 0.705]]  # 工作空间边界
-      collision_avoidance: true  # 启用碰撞避免
-      min_distance: 0.07  # 猕猴桃较小，最小距离7cm
+      x_range: [0.2, 0.4]
+      y_range: [-0.2, 0.2]
+      collision_radius: 0.07  # 猕猴桃较小，最小距离7cm
       description: "猕猴桃位置随机化"
       
     - name: "flower_bowl"
-      position:
-        offset_range: [0.25, 0.2, 0.0]  # X轴±5cm, Y轴±3cm，参考原代码
-        bounds: [[-0.20, 0.10], [0.70, 1.00], [0.700937, 0.700937]]  # 工作空间边界
-      collision_avoidance: true  # 启用碰撞避免
-      min_distance: 0.09  # 花碗作为目标容器，需要足够空间
+      x_range: [0.2, 0.4]
+      y_range: [-0.2, 0.2]
+      collision_radius: 0.09  # 花碗作为目标容器，需要足够空间
       description: "花碗位置随机化"
   
   # 相机随机化（可选）
@@ -67,7 +63,7 @@ randomization:
       max: 0.9                    # 最大光强倍数
     description: "光照随机化，适合猕猴桃任务的中等范围随机化"
   
-  # 桌面高度随机化 - 参考 airbot_task_base.py 和 cover_cup.py
+  # 桌面高度随机化
   table_height:
     activate: true
     table_name: "table"                # 桌面body名称
@@ -82,6 +78,9 @@ randomization:
     activate: true
     objects:
       - name: "tc_texture"
+        mtl_type: "texture_1k"  # 使用1K纹理
+        description: "纹理随机化，适用于物体表面细节"
+      - name: "wall_texture"
         mtl_type: "texture_1k"  # 使用1K纹理
         description: "纹理随机化，适用于物体表面细节"
 

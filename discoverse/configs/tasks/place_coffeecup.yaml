@@ -28,19 +28,16 @@ randomization:
   # 物体随机化
   objects:
     - name: "coffeecup_white"
-      position:
-        offset_range: [0.2, 0.2, 0.0]  # X轴±20cm, Y轴±6cm，参考原代码
-        bounds: [[-0.25, 0.25], [0.75, 1.25], [0.70, 0.75]]  # 工作空间边界
-      collision_avoidance: true  # 启用碰撞避免，确保杯子和盘子不重叠
-      min_distance: 0.15  # 咖啡杯需要较大操作空间，最小距离15cm
+      coordinate_system: "armbase"
+      x_range: [0.2, 0.4]
+      y_range: [-0.2, 0.2]
+      collision_radius: 0.1  # 咖啡杯需要较大操作空间，最小距离15cm
       description: "咖啡杯位置大范围随机化"
       
     - name: "plate_white"
-      position:
-        offset_range: [0.2, 0.2, 0.0]  # X轴±6.25cm, Y轴±2cm，参考原代码
-        bounds: [[-0.15, 0.15], [0.85, 1.15], [0.70, 0.75]]  # 工作空间边界
-      collision_avoidance: true  # 启用碰撞避免
-      min_distance: 0.12  # 盘子作为目标位置，需要足够空间
+      x_range: [0.2, 0.4]
+      y_range: [-0.2, 0.2]
+      collision_radius: 0.12  # 盘子作为目标位置，需要足够空间
       description: "白色盘子位置随机化"
   
   # 相机随机化（可选，对应原代码中被注释的相机随机化）
@@ -67,7 +64,7 @@ randomization:
       max: 0.9                    # 最大光强倍数
     description: "光照随机化，适合咖啡杯的大范围位置随机化"
   
-  # 桌面高度随机化 - 参考 airbot_task_base.py 和 cover_cup.py
+  # 桌面高度随机化
   table_height:
     activate: true
     table_name: "table"                # 桌面body名称
@@ -82,6 +79,9 @@ randomization:
     activate: true
     objects:
       - name: "tc_texture"
+        mtl_type: "texture_1k"  # 使用1K纹理
+        description: "纹理随机化，适用于物体表面细节"
+      - name: "wall_texture"
         mtl_type: "texture_1k"  # 使用1K纹理
         description: "纹理随机化，适用于物体表面细节"
 

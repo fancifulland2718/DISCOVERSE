@@ -56,11 +56,12 @@ class UniversalRuntimeTaskExecutor:
 
         self.mujoco_ctrl_dim = mj_model.nu
         self.move_speed = 0.75  # 控制速度
-        self.max_time = 15.0  # 最大执行时间
+        self.max_time = 20.0  # 最大执行时间（仿真时间，非真实时间）
 
         self.task.randomizer.set_viewer(viewer)
 
-        self.reset(random=False)
+        # self.reset(random=False)
+        self.reset()
 
     def get_current_qpos(self):
         """获取当前关节位置"""
@@ -175,7 +176,7 @@ class UniversalRuntimeTaskExecutor:
                     self.running = False
                     return True
                     
-            elif time.time() - self.start_time > self.max_time:
+            elif self.mj_data.time > self.max_time:
                 self.running = False
                 return False
 

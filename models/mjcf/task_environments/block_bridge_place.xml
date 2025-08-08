@@ -2,7 +2,7 @@
   <include file="../object/bridge_dependencies.xml"/>
   <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/"/>
   <worldbody>
-    <site name="manipulator_locate" pos="0.3 0.92 0.71" euler="0 0 3.1416"/>
+    <site name="manipulator_locate" pos="0.3 1. 0.71" euler="0 0 3.1416"/>
     <body name="bridge1" pos="-0.03 0.42 0.8" euler="1.5707963 0 0">
       <joint type="free" frictionloss="0.00001"/>
       <include file="../object/bridge.xml"/>

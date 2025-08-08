@@ -4,7 +4,7 @@
   <include file="../object/cup_lid_dependencies.xml"/>
   <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/"/>
   <worldbody>
-    <site name="manipulator_locate" pos="0.3 0.92 0.71" euler="0 0 3.1416"/>
+    <site name="manipulator_locate" pos="0.3 1. 0.71" euler="0 0 3.1416"/>
     <body name="coffeecup_white" pos="-0.15 1.03 0.700422" quat="0.707 0 0 -0.707">
       <joint type="free" frictionloss="0.00005"/>
       <include file="../object/coffeecup_white.xml"/>

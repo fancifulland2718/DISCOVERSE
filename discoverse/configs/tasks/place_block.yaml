@@ -21,19 +21,17 @@ randomization:
   # 物体随机化
   objects:
     - name: "block_green"
-      position:
-        offset_range: [0.3, 0.3, 0.0]  # X轴±12cm, Y轴±8cm，参考原代码
-        bounds: [[-0.15, 0.15], [0.80, 1.20], [0.7145, 0.7145]]  # 工作空间边界
-      collision_avoidance: true  # 启用碰撞避免，避免方块与碗重叠
-      min_distance: 0.10  # 方块与碗之间最小距离10cm，确保有足够操作空间
+      coordinate_system: "armbase"
+      x_range: [0.2, 0.4]
+      y_range: [-0.2, 0.2]
+      collision_radius: 0.05  # 方块碰撞检测半径5cm
       description: "绿色方块位置大范围随机化"
       
     - name: "bowl_pink"
-      position:
-        offset_range: [0.30, 0.3, 0.0]  # X轴±10cm, Y轴±5cm，参考原代码
-        bounds: [[-0.15, 0.15], [0.80, 1.20], [0.7145, 0.7145]]  # 工作空间边界
-      collision_avoidance: true  # 启用碰撞避免
-      min_distance: 0.12  # 碗的直径较大，需要更大的避让距离
+      coordinate_system: "armbase"
+      x_range: [0.2, 0.4]
+      y_range: [-0.2, 0.2]
+      collision_radius: 0.12  # 碗的直径较大，需要更大的避让距离
       description: "粉色碗位置随机化"
   
   # 相机随机化（可选，对应原代码中被注释的相机随机化）
@@ -60,7 +58,7 @@ randomization:
       max: 0.9                    # 最大光强倍数
     description: "光照随机化，适合大范围物体随机化的照明变化"
   
-  # 桌面高度随机化 - 参考 airbot_task_base.py 和 cover_cup.py
+  # 桌面高度随机化
   table_height:
     activate: true
     table_name: "table"                # 桌面body名称
@@ -75,6 +73,9 @@ randomization:
     activate: true
     objects:
       - name: "tc_texture"
+        mtl_type: "texture_1k"  # 使用1K纹理
+        description: "纹理随机化，适用于物体表面细节"
+      - name: "wall_texture"
         mtl_type: "texture_1k"  # 使用1K纹理
         description: "纹理随机化，适用于物体表面细节"
 

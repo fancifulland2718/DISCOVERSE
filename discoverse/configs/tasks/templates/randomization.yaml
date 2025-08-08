@@ -9,12 +9,10 @@ randomization:
     - name: "${object_name}"  # 物体名称（运行时替换）
       position:
         offset_range: [0.05, 0.05, 0.0]  # X轴±5cm, Y轴±5cm, Z轴固定
-        bounds: [[-0.2, 0.2], [0.7, 1.3], [0.7, 0.8]]  # 工作空间边界 [x_min, x_max], [y_min, y_max], [z_min, z_max]
       orientation:
         euler_range: [0.0, 0.0, 0.1]  # 欧拉角随机范围 [roll, pitch, yaw] (弧度)
         # 或者使用完全随机旋转
         # random_rotation: true
-      collision_avoidance: true  # 启用碰撞避免
       min_distance: 0.03  # 最小距离（米）
       description: "物体位置和姿态随机化"
   
@@ -75,7 +73,6 @@ randomization_presets:
       - name: "${object_name}"
         position:
           offset_range: [0.02, 0.02, 0.0]  # ±2cm
-        collision_avoidance: true
         min_distance: 0.02
     settings:
       max_attempts: 50
@@ -89,7 +86,6 @@ randomization_presets:
           offset_range: [0.05, 0.05, 0.0]  # ±5cm
         orientation:
           euler_range: [0.0, 0.0, 0.05]  # ±0.05弧度 yaw
-        collision_avoidance: true
         min_distance: 0.03
     cameras:
       "${camera_name}":
@@ -107,7 +103,6 @@ randomization_presets:
           offset_range: [0.08, 0.08, 0.0]  # ±8cm
         orientation:
           euler_range: [0.1, 0.1, 0.1]  # ±0.1弧度
-        collision_avoidance: true
         min_distance: 0.04
     cameras:
       "${camera_name}":
@@ -125,7 +120,6 @@ randomization_presets:
           offset_range: [0.12, 0.12, 0.0]  # ±12cm
         orientation:
           random_rotation: true  # 完全随机旋转
-        collision_avoidance: true
         min_distance: 0.05
     cameras:
       "${camera_name}":

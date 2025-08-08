@@ -3,7 +3,7 @@
   <include file="../object/flower_bowl_dependencies.xml"/>
   <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/"/>
   <worldbody>
-    <site name="manipulator_locate" pos="0.3 0.92 0.71" euler="0 0 3.1416"/>
+    <site name="manipulator_locate" pos="0.3 1. 0.71" euler="0 0 3.1416"/>
     <body name="kiwi" pos="-0.1 1.0 0.705" quat="0.995465 -0.00017601 -0.0951328 -0.000157941">
       <joint type="free" frictionloss="0.00001"/>
       <include file="../object/kiwi.xml"/>

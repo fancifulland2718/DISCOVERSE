@@ -32,27 +32,21 @@ randomization:
   # 物体随机化
   objects:
     - name: "block_green"
-      position:
-        offset_range: [0.08, 0.06, 0.0]  # X轴±8cm, Y轴±6cm, Z轴固定
-        bounds: [[-0.15, 0.15], [0.8, 1.2], [0.7145, 0.7145]]  # 工作空间边界
-      collision_avoidance: true
-      min_distance: 0.06  # 方块边长约4cm，最小距离6cm确保不碰撞
+      x_range: [0.2, 0.4]
+      y_range: [-0.2, 0.2]
+      collision_radius: 0.06  # 方块边长约4cm，最小距离6cm确保不碰撞
       description: "绿色方块位置随机化"
       
     - name: "block_red"
-      position:
-        offset_range: [0.08, 0.06, 0.0]  # X轴±8cm, Y轴±6cm, Z轴固定
-        bounds: [[-0.15, 0.15], [0.8, 1.2], [0.7145, 0.7145]]  # 工作空间边界
-      collision_avoidance: true
-      min_distance: 0.06  # 方块边长约4cm，最小距离6cm确保不碰撞
+      x_range: [0.2, 0.4]
+      y_range: [-0.2, 0.2]
+      collision_radius: 0.06  # 方块边长约4cm，最小距离6cm确保不碰撞
       description: "红色方块位置随机化"
       
     - name: "block_blue"
-      position:
-        offset_range: [0.08, 0.06, 0.0]  # X轴±8cm, Y轴±6cm, Z轴固定
-        bounds: [[-0.15, 0.15], [0.8, 1.2], [0.7145, 0.7145]]  # 工作空间边界
-      collision_avoidance: true
-      min_distance: 0.06  # 方块边长约4cm，最小距离6cm确保不碰撞
+      x_range: [0.2, 0.4]
+      y_range: [-0.2, 0.2]
+      collision_radius: 0.06  # 方块边长约4cm，最小距离6cm确保不碰撞
       description: "蓝色方块位置随机化"
   
   # 相机随机化（可选，对应原代码中被注释的相机随机化）
@@ -63,7 +57,7 @@ randomization:
       orientation_offset: [0.05, 0.05, 0.05]  # 姿态偏移范围 ±0.05弧度
       description: "侧视相机视角随机化"
   
-  # 光照随机化（参考airbot_task_base中的random_light方法）
+  # 光照随机化
   lighting:
     activate: true
     random_color: true             # 随机化光源颜色
@@ -79,7 +73,7 @@ randomization:
       max: 0.9                    # 最大光强倍数
     description: "光照随机化，模拟不同照明条件"
   
-  # 桌面高度随机化 - 参考 airbot_task_base.py 和 cover_cup.py
+  # 桌面高度随机化
   table_height:
     activate: true
     table_name: "table"                # 桌面body名称
@@ -95,6 +89,9 @@ randomization:
     activate: true
     objects:
       - name: "tc_texture"
+        mtl_type: "texture_1k"  # 使用1K纹理
+        description: "纹理随机化，适用于物体表面细节"
+      - name: "wall_texture"
         mtl_type: "texture_1k"  # 使用1K纹理
         description: "纹理随机化，适用于物体表面细节"
 

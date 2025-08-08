@@ -4,7 +4,7 @@
   <include file="../object/jujube_dependencies.xml"/>
   <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/"/>
   <worldbody>
-    <site name="manipulator_locate" pos="0.3 0.92 0.71" euler="0 0 3.1416"/>
+    <site name="manipulator_locate" pos="0.3 1. 0.71" euler="0 0 3.1416"/>
     <body name="jujube" pos="0 1.03 0.69928" euler="0 0 1.5708">
       <joint type="free" frictionloss="0.00005"/>
       <include file="../object/jujube.xml"/>

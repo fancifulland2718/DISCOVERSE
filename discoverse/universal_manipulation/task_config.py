@@ -186,12 +186,6 @@ class TaskConfigLoader:
                     if 'name' not in obj_config:
                         print(f"❌ 随机化物体配置 {i} 缺少 'name' 字段")
                         return False
-                    
-                    # 检查必需的随机化参数
-                    if 'position' not in obj_config and 'orientation' not in obj_config:
-                        print(f"❌ 物体 '{obj_config['name']}' 至少需要配置 position 或 orientation 随机化")
-                        return False
-        
         return True
 
     def __str__(self) -> str:

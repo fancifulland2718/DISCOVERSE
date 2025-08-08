@@ -1,7 +1,7 @@
 <mujoco model="stack_block">
   <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/"/>
   <worldbody>
-    <site name="manipulator_locate" pos="0.3 0.92 0.71" euler="0 0 3.1416"/>
+    <site name="manipulator_locate" pos="0.3 1. 0.71" euler="0 0 3.1416"/>
     <body name="block_green" pos="0 0.90 0.7145">
       <joint type="free" frictionloss="0.00001"/>
       <inertial pos="0 0 0" mass="0.001" diaginertia="1e-7 1e-7 1e-7"/>

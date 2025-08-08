@@ -8,7 +8,7 @@ import numpy as np
 import mujoco
 from scipy.spatial.transform import Rotation
 from typing import Dict, List, Any, Optional, Tuple
-from discoverse.utils import get_random_texture
+from discoverse.utils import get_random_texture, get_site_tmat
 
 class SceneRandomizer:
     """场景随机化器"""
@@ -71,14 +71,17 @@ class SceneRandomizer:
         Returns:
             是否成功随机化
         """
+        # 保存设置以供其他方法使用
+        self._current_settings = randomization_config.get('settings', {})
+        
+        # 从设置中获取最大尝试次数
+        if 'max_attempts' in self._current_settings:
+            max_attempts = self._current_settings['max_attempts']
+        
         # 随机化物体 - 检查激活状态
         if 'objects' in randomization_config:
             objects_config = randomization_config['objects']
-            # 如果objects是一个列表
-            if isinstance(objects_config, list):
-                self._randomize_objects(objects_config, max_attempts)
-            else:
-                print("⚠️ 无效的objects配置格式")
+            self._randomize_objects(objects_config, max_attempts)
         
         # 随机化相机 - 检查激活状态
         if 'cameras' in randomization_config:
@@ -129,139 +132,126 @@ class SceneRandomizer:
             max_attempts: 最大尝试次数
             
         Returns:
-            是否成功
+            是否成功随机化
         """
-        return self._randomize_objects_simple(objects_config)
+        return self._randomize_objects_with_collision(objects_config, max_attempts)
     
-    def _randomize_objects_simple(self, objects_config: List[Dict[str, Any]]) -> bool:
+    def _randomize_objects_with_collision(self, objects_config: List[Dict[str, Any]], max_attempts: int) -> bool:
         """
-        简单物体随机化（不考虑碰撞检测）
+        基于边界框和碰撞检测的物体随机化
         
         Args:
             objects_config: 物体随机化配置列表
+            max_attempts: 最大尝试次数
             
         Returns:
             是否成功
         """
-        for obj_config in objects_config:
-            success = self._randomize_single_object(obj_config)
-            if not success:
-                print(f"⚠️ 物体 '{obj_config.get('name', 'unknown')}' 随机化失败")
-                return False
+        print("🎯 开始边界框随机化（支持碰撞检测）...")
         
-        return True
-    
-    def _randomize_single_object(self, obj_config: Dict[str, Any]) -> bool:
-        """
-        随机化单个物体
+        # 构建变换矩阵
+        armbase_tmat = get_site_tmat(self.mj_data, "armbase")
         
-        Args:
-            obj_config: 物体随机化配置
+        # 多次尝试随机化所有物体
+        for attempt in range(max_attempts):
+            placed_objects = []  # 已放置物体的信息 [(name, x, y, radius), ...]
+            success = True
             
-        Returns:
-            是否成功
-        """
-        object_name = obj_config.get('name')
-        if not object_name:
-            return False
-
-        try:
-            joint_adr = self.mj_model.jnt_qposadr[self.free_body_qpos_ids[object_name]]
-        except KeyError:
-            print(f"❌ 未找到物体: {object_name} or {object_name} 没有free_joint")
-            return False        
-        
-        # 随机化位置
-        if 'position' in obj_config:
-            self._randomize_object_position(joint_adr, obj_config['position'])
-        
-        # 随机化姿态
-        if 'orientation' in obj_config:
-            self._randomize_object_orientation(joint_adr, obj_config['orientation'])
-        
-        return True
-    
-    def _randomize_object_position(self, joint_adr: int, position_config: Dict[str, Any]):
-        """
-        随机化物体位置
-        
-        Args:
-            joint_adr: 关节地址
-            position_config: 位置随机化配置
-        """
-        # 获取当前位置
-        current_pos = self.mj_data.qpos[joint_adr:joint_adr+3].copy()
-        
-        # 应用随机偏移
-        if 'offset_range' in position_config:
-            offset_range = position_config['offset_range']
-            if isinstance(offset_range, (list, tuple)) and len(offset_range) == 3:
-                # 每个轴独立的偏移范围 [x_range, y_range, z_range]
-                offset = np.array([
-                    2 * (np.random.random() - 0.5) * offset_range[0],
-                    2 * (np.random.random() - 0.5) * offset_range[1],
-                    2 * (np.random.random() - 0.5) * offset_range[2]
-                ])
-            elif isinstance(offset_range, (int, float)):
-                # 统一的偏移范围
-                offset = 2 * (np.random.random(3) - 0.5) * offset_range
-            else:
-                offset = np.zeros(3)
-            
-            self.mj_data.qpos[joint_adr:joint_adr+3] = current_pos + offset
-        
-        # 应用固定范围约束
-        if 'bounds' in position_config:
-            bounds = position_config['bounds']
-            for i, (min_val, max_val) in enumerate(bounds):
-                if i < 3:  # x, y, z
-                    self.mj_data.qpos[joint_adr + i] = np.clip(
-                        self.mj_data.qpos[joint_adr + i], min_val, max_val
+            for obj_config in objects_config:
+                object_name = obj_config.get('name')
+                print(f"  📦 随机化物体: {object_name}")
+                if not object_name:
+                    continue
+                
+                # 尝试为当前物体找到合适位置
+                obj_success = False
+                for obj_attempt in range(10):  # 每个物体最多尝试10次
+                    new_pos = self._generate_random_position_in_bounds(
+                        obj_config, armbase_tmat, object_name
                     )
+                    
+                    if new_pos is None:
+                        break
+                    
+                    # 检查与已放置物体的碰撞
+                    radius = obj_config.get('min_distance', 0.05)
+                    if self._check_collision_2d(new_pos[:2], radius, placed_objects):
+                        continue  # 有碰撞，重新尝试
+                    
+                    # 设置物体位置
+                    joint_adr = self.mj_model.jnt_qposadr[self.free_body_qpos_ids[object_name]]
+                    self.mj_data.qpos[joint_adr:joint_adr+3] = new_pos
+                    
+                    # 记录已放置的物体
+                    placed_objects.append((object_name, new_pos[0], new_pos[1], radius))
+                    obj_success = True
+                    break
+
+                if not obj_success:
+                    success = False
+                    break
+            
+            if success:
+                print(f"✅ 边界框随机化成功 (尝试次数: {attempt + 1})")
+                return True
+                   
+        print(f"❌ 边界框随机化失败，已达到最大尝试次数: {max_attempts}")
+        return False
     
-    def _randomize_object_orientation(self, joint_adr: int, orientation_config: Dict[str, Any]):
+    def _generate_random_position_in_bounds(self, obj_config: Dict[str, Any], 
+                                          armbase_tmat: np.ndarray, 
+                                          object_name: str) -> Optional[np.ndarray]:
         """
-        随机化物体姿态
+        在边界框内生成随机位置
         
         Args:
-            joint_adr: 关节地址
-            orientation_config: 姿态随机化配置
+            obj_config: 物体配置
+            armbase_tmat: armbase的变换矩阵
+            object_name: 物体名称
+            
+        Returns:
+            世界坐标系中的新位置，如果失败返回None
+        """        
+        # 检查是否使用边界框模式
+        if 'x_range' not in obj_config or 'y_range' not in obj_config:
+            return None
+        
+        # 获取边界框参数
+        x_range = obj_config['x_range']
+        y_range = obj_config['y_range']
+        
+        local_x = np.random.uniform(x_range[0], x_range[1])
+        local_y = np.random.uniform(y_range[0], y_range[1])
+                
+        local_pos = np.array([local_x, local_y, 0.0, 1.0])
+        
+        # 转换到世界坐标系
+        world_pos = armbase_tmat @ local_pos
+        joint_adr = self.mj_model.jnt_qposadr[self.free_body_qpos_ids[object_name]]
+        current_z = self.mj_data.qpos[joint_adr + 2]
+        world_pos[2] = current_z
+
+        return world_pos[:3]
+    
+    def _check_collision_2d(self, pos_2d: np.ndarray, radius: float, 
+                           placed_objects: List[Tuple[str, float, float, float]]) -> bool:
         """
-        # 获取当前四元数 (w, x, y, z)
-        current_quat = self.mj_data.qpos[joint_adr+3:joint_adr+7].copy()
+        检查2D平面上的碰撞
         
-        if 'euler_range' in orientation_config:
-            # 欧拉角随机化
-            euler_range = orientation_config['euler_range']
+        Args:
+            pos_2d: 待检查位置的XY坐标
+            radius: 待检查物体的半径
+            placed_objects: 已放置物体列表 [(name, x, y, radius), ...]
             
-            # 将当前四元数转换为欧拉角
-            current_rotation = Rotation.from_quat(current_quat[[1, 2, 3, 0]])  # (x, y, z, w)
-            current_euler = current_rotation.as_euler('xyz', degrees=False)
-            
-            # 应用随机偏移
-            if isinstance(euler_range, (list, tuple)) and len(euler_range) == 3:
-                euler_offset = np.array([
-                    2 * (np.random.random() - 0.5) * euler_range[0],
-                    2 * (np.random.random() - 0.5) * euler_range[1],
-                    2 * (np.random.random() - 0.5) * euler_range[2]
-                ])
-            elif isinstance(euler_range, (int, float)):
-                euler_offset = 2 * (np.random.random(3) - 0.5) * euler_range
-            else:
-                euler_offset = np.zeros(3)
-            
-            # 计算新的欧拉角并转换回四元数
-            new_euler = current_euler + euler_offset
-            new_rotation = Rotation.from_euler('xyz', new_euler, degrees=False)
-            new_quat = new_rotation.as_quat()  # (x, y, z, w)
-            
-            # 转换为MuJoCo格式 (w, x, y, z)
-            self.mj_data.qpos[joint_adr+3:joint_adr+7] = [new_quat[3], new_quat[0], new_quat[1], new_quat[2]]
-        
-        elif 'random_rotation' in orientation_config and orientation_config['random_rotation']:
-            # 完全随机旋转
-            random_quat = self._generate_random_quaternion()
-            self.mj_data.qpos[joint_adr+3:joint_adr+7] = random_quat
+        Returns:
+            是否发生碰撞
+        """
+        for name, x, y, other_radius in placed_objects:
+            distance = np.hypot(pos_2d[0] - x, pos_2d[1] - y)
+            min_distance = radius + other_radius
+            if distance < min_distance:
+                return True  # 发生碰撞
+        return False  # 无碰撞
     
     def _randomize_cameras(self, cameras_config: Dict[str, Any]):
         """

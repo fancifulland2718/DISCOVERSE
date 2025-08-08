@@ -45,6 +45,7 @@ class RobotInterface(ABC):
         self.ctrl_dim = robot_config.ctrl_dim
         self.qpos_dim = robot_config.qpos_dim
         self.arm_joints = robot_config.arm_joints
+        self.joint_pos_sensors = robot_config.joint_pos_sensors
         
         self.target_qpos = np.zeros(self.qpos_dim)
         self.is_moving = False

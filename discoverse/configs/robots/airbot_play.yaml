@@ -55,15 +55,8 @@ control:
     - name: "gripper"                # 夹爪tendon控制
       type: "tendon"
 
-# ============== 坐标系配置 ==============
-coordinate_frames:
-  base_frame: "arm_base"             # 基座坐标系
-  planning_frame: "arm_base"         # 规划坐标系
-  tcp_frame: "endpoint"              # 工具中心点坐标系
-
 # ============== 传感器配置 ==============
 sensors:
-  # 关节位置传感器 (按顺序)
   joint_pos_sensors:
     - "joint1_pos"
     - "joint2_pos"
@@ -72,34 +65,10 @@ sensors:
     - "joint5_pos"
     - "joint6_pos"
     - "gripper_pos"  # 夹爪肌腱位置
-  
-  # 关节速度传感器 (按顺序)
-  joint_vel_sensors:
-    - "joint1_vel"
-    - "joint2_vel"
-    - "joint3_vel"
-    - "joint4_vel"
-    - "joint5_vel"
-    - "joint6_vel"
-    - "gripper_vel"  # 夹爪肌腱速度
-  
-  # 关节力矩传感器 (按顺序)
-  joint_torque_sensors:
-    - "joint1_torque"
-    - "joint2_torque"
-    - "joint3_torque"
-    - "joint4_torque"
-    - "joint5_torque"
-    - "joint6_torque"
-    - "gripper_torque"  # 夹爪力矩
-  
-  # 末端执行器传感器
+
   end_effector_sensors:
     position: "endpoint_pos"         # 末端位置
     orientation: "endpoint_quat"     # 末端姿态
-    velocity: "endpoint_vel"         # 末端速度
-    gyro: "endpoint_gyro"            # 末端角速度
-    accelerometer: "endpoint_acc"    # 末端加速度
 
 # ============== IK求解配置 ==============
 ik_solver:
@@ -112,12 +81,3 @@ ik_solver:
   orientation_cost: 10.0             # 姿态权重
   posture_cost: 0.01                 # 姿态保持权重
   dt: 0.002                          # 积分时间步长
-
-# ============== MJCF模型路径 ==============
-mjcf_model:
-  base_path: "models/mjcf/manipulator/airbot_play/airbot_play.xml"
-  dependencies:
-    - "models/mjcf/manipulator/airbot_play/airbot_play_dependencies.xml"
-    - "models/mjcf/manipulator/airbot_play/airbot_play_control.xml"
-    - "models/mjcf/manipulator/airbot_play/airbot_play_sensor.xml"
-    - "models/mjcf/manipulator/airbot_play/airbot_play_appendix.xml" 

@@ -4,6 +4,18 @@
 task_name: "cover_cup"
 description: "将咖啡杯移到盘子上，然后用杯盖盖住"
 
+observation:
+  fps : 30        # 帧率
+  cameras:
+    - name: "eye_side" # 侧视相机
+      fovy: 60        # 视场角 (degrees)
+      width: 640      # 分辨率宽度
+      height: 480     # 分辨率高度
+    - name: "eye_arm" # 机械臂末端相机
+      fovy: 72.54     # 视场角 (degrees)
+      width: 640      # 分辨率宽度
+      height: 480     # 分辨率高度
+
 # ============== 成功条件检查 ==============
 success_check:
   method: "combined"  # 组合检查方法

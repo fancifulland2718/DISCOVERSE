@@ -13,6 +13,7 @@ from .mink_solver import MinkIKSolver
 from .robot_interface import RobotInterface
 from .task_base import UniversalTaskBase
 from .randomization import SceneRandomizer
+from .recorder import PyavImageEncoder, recoder_single_arm
 
 __all__ = [
     "load_and_resolve_config",
@@ -23,4 +24,6 @@ __all__ = [
     "RobotInterface",
     "UniversalTaskBase",
     "SceneRandomizer",
+    "PyavImageEncoder",
+    "recoder_single_arm",
 ]

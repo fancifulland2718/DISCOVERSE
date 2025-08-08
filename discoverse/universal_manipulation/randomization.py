@@ -6,6 +6,10 @@
 
 import numpy as np
 import mujoco
+
+import OpenGL.GL as gl
+from PIL import Image
+
 from scipy.spatial.transform import Rotation
 from typing import Dict, List, Any, Optional, Tuple
 from discoverse.utils import get_random_texture, get_site_tmat
@@ -24,6 +28,7 @@ class SceneRandomizer:
         self.mj_model = mj_model
         self.mj_data = mj_data
         self.viewer = None
+        self.renderer = None
 
         # 存储初始状态
         self.initial_camera_poses = {}
@@ -59,6 +64,9 @@ class SceneRandomizer:
     def set_viewer(self, viewer):
         """设置可视化器引用"""
         self.viewer = viewer
+    
+    def set_renderer(self, renderer):
+        self.renderer = renderer
 
     def exec_randomization(self, randomization_config: Dict[str, Any], max_attempts: int = 100) -> bool:
         """
@@ -108,7 +116,6 @@ class SceneRandomizer:
             textures_config = randomization_config['textures']
             if textures_config.get('activate', True):  # 默认激活
                 self._randomize_textures(textures_config)
-                self.viewer
         
         # 应用更改
         mujoco.mj_forward(self.mj_model, self.mj_data)
@@ -519,18 +526,23 @@ class SceneRandomizer:
         
         mtl_type = obj_config.get('mtl_type', 'texture_1k')
         if mtl_type == "texture_1k":
-            random_texture_data = get_random_texture()
+            random_texture_pil = get_random_texture()
         else:
             print(f"⚠️ 不支持的材质类型: {mtl_type}")
             return
 
         # 更新纹理数据
-        self.mj_model.texture(texture_name).data = np.array(random_texture_data)
+        self.mj_model.texture(texture_name).data = np.array(random_texture_pil)
 
         if self.viewer is not None:
             self._update_texture_viewer(texture_name)
         else:
             print("⚠️ 未设置查看器，无法更新纹理显示")
+        
+        if self.renderer is not None:
+            self._update_texture_renderer(texture_name, random_texture_pil)
+        else:
+            print("⚠️ 未设置渲染器，无法更新纹理显示")
 
         print(f"   ✅ 材质 {texture_name} 随机化成功")
 
@@ -549,3 +561,52 @@ class SceneRandomizer:
         except KeyError:
             print(f"❌ 未找到纹理: {texture_name}")
             return
+
+    def _update_texture_renderer(self, texture_name: str, mtl_img_pil):
+        """
+        更新渲染器中的纹理显示
+        
+        Args:
+            texture_name: 纹理名称
+        """
+        try:
+            tex_id = self.renderer.model.tex(texture_name).id
+        except Exception as e:
+            print(f"Texture '{texture_name}' not found: {e}")
+            return
+
+        tex_bind_id = self.renderer._mjr_context.texture[tex_id]
+        gl.glBindTexture(gl.GL_TEXTURE_2D, tex_bind_id)
+        
+        try:
+            width = gl.glGetTexLevelParameteriv(gl.GL_TEXTURE_2D, 0, gl.GL_TEXTURE_WIDTH)
+            height = gl.glGetTexLevelParameteriv(gl.GL_TEXTURE_2D, 0, gl.GL_TEXTURE_HEIGHT)
+        except Exception as e:
+            print(f"Error getting texture dimensions: {e}")
+            gl.glBindTexture(gl.GL_TEXTURE_2D, 0)
+            return
+
+        try:
+            if mtl_img_pil.mode != 'RGB':
+                mtl_img_pil = mtl_img_pil.convert('RGB')
+
+            if mtl_img_pil.size != (width, height):
+                mtl_img_pil = mtl_img_pil.resize((width, height), Image.Resampling.LANCZOS)
+            
+            mtl_img = np.array(mtl_img_pil)
+            mtl_img = np.flipud(mtl_img)
+            mtl_img = np.ascontiguousarray(mtl_img, dtype=np.uint8)
+
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_S, gl.GL_REPEAT)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_WRAP_T, gl.GL_REPEAT)
+
+            gl.glTexSubImage2D(gl.GL_TEXTURE_2D, 0, 0, 0, width, height, 
+                              gl.GL_RGB, gl.GL_UNSIGNED_BYTE, mtl_img.tobytes())
+            
+        except Exception as e:
+            print(f"Error processing image for texture '{texture_name}': {e}")
+            return
+        finally:
+            gl.glBindTexture(gl.GL_TEXTURE_2D, 0)

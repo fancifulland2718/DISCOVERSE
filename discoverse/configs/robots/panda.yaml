@@ -78,20 +78,17 @@ ik_solver:
   posture_cost: 0.01                 # 姿态保持权重
   dt: 0.002                          # 积分时间步长
 
-# ============== 坐标系配置 ==============
-coordinate_frames:
-  base_frame: "panda_link0"          # 基座坐标系
-  planning_frame: "panda_link0"      # 规划坐标系
-  tcp_frame: "attachment_site"       # 工具中心点坐标系
-
 # ============== 传感器配置 ==============
 sensors:
-  joint_states: true                 # 关节状态传感器
-  end_effector_wrench: false         # 末端力/力矩传感器
-  joint_torques: true                # 关节力矩传感器
-
-# ============== MJCF模型路径 ==============
-mjcf_model:
-  base_path: "models/mjcf/manipulator/robot_panda.xml"
-  dependencies:
-    - "models/mjcf/manipulator/franka_emika_panda/" 
+  joint_pos_sensors:
+    - "joint1_pos"
+    - "joint2_pos"
+    - "joint3_pos"
+    - "joint4_pos"
+    - "joint5_pos"
+    - "joint6_pos"
+    - "joint7_pos"
+    - "gripper_pos"
+  end_effector_sensors:
+    position: "endpoint_pos"         # 末端位置
+    orientation: "endpoint_quat"     # 末端姿态

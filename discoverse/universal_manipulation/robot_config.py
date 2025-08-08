@@ -62,7 +62,8 @@ class RobotConfigLoader:
         required_fields = [
             'robot_name',
             'kinematics',
-            'gripper'
+            'gripper',
+            'sensors'
         ]
         
         for field in required_fields:
@@ -82,7 +83,14 @@ class RobotConfigLoader:
         for field in gripper_required:
             if field not in gripper:
                 raise ValueError(f"Missing required gripper field: {field}")
-    
+
+        # 验证传感器配置
+        sensors = self.config['sensors']
+        sensors_required = ['joint_pos_sensors', 'end_effector_sensors']
+        for field in sensors_required:
+            if field not in sensors:
+                raise ValueError(f"Missing required sensor field: {field}")
+
     def _process_config(self):
         """处理配置，转换数据类型等"""
         # 处理特殊配置
@@ -134,6 +142,11 @@ class RobotConfigLoader:
     def arm_joint_names(self) -> List[str]:
         """获取机械臂关节名称列表"""
         return self.config['kinematics'].get('arm_joint_names', [])
+    
+    @property
+    def joint_pos_sensors(self) -> List[str]:
+        """获取关节位置传感器名称列表"""
+        return self.config['sensors'].get('joint_pos_sensors', [])
 
 def load_robot_config(config_path: str) -> RobotConfigLoader:
     """

@@ -157,10 +157,20 @@ class TaskConfigLoader:
     
     # ============== 属性访问方法 ==============
     @property
-    def success_condition(self) -> Optional[Dict[str, Any]]:
-        """获取成功条件"""
-        return self.config.get('success_condition')
+    def task_name(self) -> str:
+        """获取任务名称"""
+        return self.config.get('task_name', 'unknown_task')
+
+    @property 
+    def record_fps(self) -> int:
+        """获取记录帧率"""
+        return self.config.get('observation', {'fps': 30}).get('fps', 30)
     
+    @property
+    def camera_configs(self) -> List[Dict[str, Any]]:
+        """获取相机配置列表"""
+        return self.config.get('observation', {}).get('cameras', [])
+
     @property 
     def success_check(self) -> Optional[Dict[str, Any]]:
         """获取成功检查配置"""

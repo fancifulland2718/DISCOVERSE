@@ -20,6 +20,7 @@ class PyavImageEncoder:
         stream.pix_fmt = "yuv420p"
         self._time_base = int(1e6)
         stream.time_base = fractions.Fraction(1, self._time_base)
+        stream.codec_context.time_base = stream.time_base
         self.container = container
         self.stream = stream
         self.start_time = None

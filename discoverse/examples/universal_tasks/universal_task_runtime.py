@@ -1,5 +1,6 @@
 import os
 import time
+import shutil
 import argparse
 import traceback
 
@@ -244,7 +245,7 @@ class UniversalRuntimeTaskExecutor:
                 self.action[i] = step_func(
                     self.action[i], 
                     self.target_control[i], 
-                    self.move_speed * self.joint_move_ratio[i] * self.mj_model.opt.timestep
+                    self.move_speed * float(decimation) * self.joint_move_ratio[i] * self.mj_model.opt.timestep
                 )
             self.action[self.gripper_ctrl_idx] = self.target_control[self.gripper_ctrl_idx]
             
@@ -337,7 +338,8 @@ class UniversalRuntimeTaskExecutor:
             ec.close()
         
         if not self.success:
-            os.rmdir(self.save_dir)
+            shutil.rmtree(self.save_dir, ignore_errors=True)
+            print(f"   ❌ 任务未成功，已删除保存目录: {self.save_dir}")
         else:
             # 保存观测数据
             recoder_single_arm(self.save_dir, obs_lst)
@@ -386,7 +388,8 @@ class UniversalRuntimeTaskExecutor:
         self.camera_encoders = {}
         for cam_name in self.camera_cfgs.keys():
             if mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_CAMERA, cam_name) < 0:
-                raise ValueError(f"Camera '{cam_name}' not found in the MJCF model.")
+                # raise ValueError(f"Camera '{cam_name}' not found in the MJCF model.")
+                print(f"Camera '{cam_name}' not found in the MJCF model.")
             else:
                 # fovy = self.camera_cfgs[cam_name].get("fovy", None)
                 # if fovy:

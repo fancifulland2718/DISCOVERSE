@@ -417,8 +417,8 @@ if __name__ == "__main__":
     parser.add_argument('--max-depth', type=float, default=5.0, help='最大渲染深度')
     parser.add_argument('--camera-distance', type=float, default=0.1, help='双目相机基线距离')
     parser.add_argument('--fovy', type=float, default=75.0, help='相机视场角(度)')
-    parser.add_argument('--width', type=int, default=1920, help='渲染图像宽度')
-    parser.add_argument('--height', type=int, default=1080, help='渲染图像高度')
+    parser.add_argument('--width', type=int, default=1280, help='渲染图像宽度')
+    parser.add_argument('--height', type=int, default=720, help='渲染图像高度')
     parser.add_argument('--show-gui', action='store_true', help='是否显示视角管理GUI界面')
     parser.add_argument('-cp', '--camera-pose-path', type=str, default=None, help='相机位姿文件路径')
     parser.add_argument('-ni', '--num-interpolate', type=int, default=0, help='插值相机位姿的总数')
@@ -499,6 +499,8 @@ if __name__ == "__main__":
     # 创建并配置相机环境
     with open(xml_save_path, "w") as f:
         f.write(camera_env_xml)
+    print(xml_save_path)
+    exit(0)
     robot = CamEnv(cfg)
     robot.options.label = mujoco.mjtLabel.mjLABEL_CAMERA.value
     robot.options.frame = mujoco.mjtFrame.mjFRAME_SITE.value

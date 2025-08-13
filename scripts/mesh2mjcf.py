@@ -316,8 +316,9 @@ def create_asset_xml(asset_name, convex_parts=None, materials=None, submesh_file
     
     return root
 
-def create_geom_xml(asset_name, mass, diaginertia, rgba, free_joint=False, 
-                   convex_parts=None, materials=None, submesh_files=None):
+def create_geom_xml(asset_name, mass, diaginertia, rgba, free_joint=False,
+                    convex_parts=None, materials=None, submesh_files=None, 
+                    output_dir=DISCOVERSE_ASSETS_DIR):
     """创建几何体定义 XML 文件"""
     root = ET.Element("mujocoinclude")
     
@@ -346,7 +347,7 @@ def create_geom_xml(asset_name, mass, diaginertia, rgba, free_joint=False,
             material_assigned = False
             
             # 读取子网格文件来确定使用的材质
-            submesh_path = Path(DISCOVERSE_ASSETS_DIR) / "meshes" / "object" / asset_name / submesh_file
+            submesh_path = Path(output_dir) / "meshes" / "object" / asset_name / submesh_file
             if submesh_path.exists():
                 try:
                     with open(submesh_path, 'r', encoding='utf-8') as f:
@@ -475,14 +476,17 @@ if __name__ == "__main__":
     parser.add_argument("input_file", type=str, help="输入的网格文件路径 (.obj 或 .stl)。")
     parser.add_argument("--rgba", nargs=4, type=float, default=[0.5, 0.5, 0.5, 1], help="网格的 RGBA 颜色，默认为 [0.5, 0.5, 0.5, 1]。")
     parser.add_argument("--mass", type=float, default=0.001, help="网格的质量，默认为 0.001 kg。")
+    parser.add_argument("-o", "--output", type=str, default=DISCOVERSE_ASSETS_DIR, help="输出的资产文件路径，")
     parser.add_argument("--diaginertia", nargs=3, type=float, default=[0.00002, 0.00002, 0.00002], help="网格的对角惯性张量，默认为 [2e-5, 2e-5, 2e-5]。")
     parser.add_argument("--free_joint", action="store_true", help="是否为物体添加free自由度")
     parser.add_argument("-cd", "--convex_decomposition", action="store_true", help="是否将网格分解为多个凸部分以进行更精确的碰撞检测，默认为 False。需要安装 coacd 和 trimesh。")
+    parser.add_argument("--scene", action="store_true", help="是否为物体添加场景信息，默认为 False。")
     parser.add_argument("--verbose", action="store_true", help="是否在转换完成后使用 MuJoCo 查看器可视化生成的模型，默认为 False。")
     args = parser.parse_args()
 
     verbose = args.verbose
     convex_de = args.convex_decomposition
+    output_assets_dir = args.output
 
     if convex_de:
         try:
@@ -505,8 +509,8 @@ if __name__ == "__main__":
     else:
         exit(f"错误: {input_file} 不是有效的文件类型。请使用 .obj 或 .stl 文件。")
 
-    output_dir = os.path.join(DISCOVERSE_ASSETS_DIR, "meshes", "object", asset_name)
-    mjcf_obj_dir = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "object")
+    output_dir = os.path.join(output_assets_dir, "meshes", "object", asset_name)
+    mjcf_obj_dir = os.path.join(output_assets_dir, "mjcf", "object")
     if not os.path.exists(mjcf_obj_dir):
         os.makedirs(mjcf_obj_dir)
     if os.path.exists(output_dir):
@@ -564,7 +568,15 @@ if __name__ == "__main__":
         print(f"正在对 {asset_name} 进行凸分解...")
         mesh = trimesh.load(input_file, force="mesh")
         mesh_coacd = coacd.Mesh(mesh.vertices, mesh.faces)
-        parts = coacd.run_coacd(mesh_coacd)
+        coacd_config_scene = {
+            "threshold": 0.01,          # 0.05
+            "preprocess_resolution": 100, # 50
+        }
+        coacd_config = coacd_config_scene if args.scene else {}
+        parts = coacd.run_coacd(
+            mesh_coacd,
+            **coacd_config
+        )
 
         for i, part in enumerate(parts):
             part_filename = f"part_{i}.obj"
@@ -586,7 +598,8 @@ if __name__ == "__main__":
     geom_xml = create_geom_xml(asset_name, mass, diaginertia, rgba, free_joint, 
                               convex_parts_count if convex_de else None,
                               materials if submesh_files or len(materials) == 1 else None, 
-                              submesh_files if submesh_files else None)
+                              submesh_files if submesh_files else None,
+                              output_assets_dir)
     geom_file_path = os.path.join(mjcf_obj_dir, f"{asset_name}.xml")
     save_xml_with_formatting(geom_xml, geom_file_path)
 
@@ -599,14 +612,14 @@ if __name__ == "__main__":
 
     if verbose:
         print("\n正在启动 MuJoCo 查看器...")
-        py_dir = shutil.which('python3')
+        py_dir = shutil.which('python')
         if not py_dir:
-            py_dir = shutil.which('python')
+            py_dir = shutil.which('python3')
         if not py_dir:
             print("错误：找不到 python 或 python3 可执行文件。无法启动查看器。")
             exit(1)
 
-        tmp_world_mjcf = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "_tmp_preview.xml")
+        tmp_world_mjcf = os.path.join(output_assets_dir, "mjcf", "_tmp_preview.xml")
 
         # 创建预览 XML
         preview_xml = create_preview_xml(asset_name)

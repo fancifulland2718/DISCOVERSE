@@ -54,6 +54,21 @@ control:
     - name: "finger_joint1"          # 夹爪关节
       type: "position"
 
+# ============== 传感器配置 ==============
+sensors:
+  joint_pos_sensors:
+    - "joint1_pos"
+    - "joint2_pos"
+    - "joint3_pos"
+    - "joint4_pos"
+    - "joint5_pos"
+    - "joint6_pos"
+    - "gripper_pos"  # 夹爪肌腱位置
+
+  end_effector_sensors:
+    position: "endpoint_pos"         # 末端位置
+    orientation: "endpoint_quat"     # 末端姿态
+  
 # ============== Mink IK配置 ==============
 ik_solver:
   solver_type: "quadprog"            # 使用quadprog求解器
@@ -65,11 +80,3 @@ ik_solver:
   orientation_cost: 10.0             # 姿态权重
   posture_cost: 0.01                 # 姿态保持权重
   dt: 0.002                          # 积分时间步长
-
-# ============== 传感器配置 ==============
-sensors:
-  joint_sensors: ["joint1_pos", "joint2_pos", "joint3_pos", "joint4_pos", "joint5_pos", "joint6_pos"]
-  gripper_sensors: ["gripper_pos"]
-  end_effector_sensors:
-    position: "endpoint_pos"
-    orientation: "endpoint_quat"

@@ -43,7 +43,11 @@ def camera2k(fovy, width, height):
 def get_random_texture():
     TEXTURE_1K_PATH = os.getenv("TEXTURE_1K_PATH", os.path.join(DISCOVERSE_ASSETS_DIR, "textures_1k"))
     if not TEXTURE_1K_PATH is None and os.path.exists(TEXTURE_1K_PATH):
-        return Image.open(os.path.join(TEXTURE_1K_PATH, random.choice(os.listdir(TEXTURE_1K_PATH))))
+        for _ in range(5):
+            img_path = os.path.join(TEXTURE_1K_PATH, random.choice(os.listdir(TEXTURE_1K_PATH)))
+            if img_path.endswith('.png') or img_path.endswith('.jpg'):
+                return Image.open(img_path)
+            continue
     else:
         # raise ValueError("TEXTURE_1K_PATH not found")
         print("Warning: TEXTURE_1K_PATH not found! Please set the TEXTURE_1K_PATH environment variable to the path of the textures_1k directory.")

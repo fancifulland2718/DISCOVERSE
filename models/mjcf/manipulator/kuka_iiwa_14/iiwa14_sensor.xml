@@ -6,4 +6,6 @@
   <jointpos name="joint5_pos" joint="joint5"/>
   <jointpos name="joint6_pos" joint="joint6"/>
   <jointpos name="joint7_pos" joint="joint7"/>
+  <tendonpos name="gripper_pos" tendon="split" />
+
 </mujocoinclude>

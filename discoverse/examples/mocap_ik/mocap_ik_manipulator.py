@@ -72,10 +72,15 @@ if __name__ == "__main__":
         default=None,
         help="输入MJCF文件的路径（可选）。如未指定，则使用默认的robot_airbot_play.xml"
     )
+    parser.add_argument(
+        "-y",
+        action="store_true",
+        help="输入MJCF文件的路径（可选）。如未指定，则使用默认的robot_airbot_play.xml"
+    )
     args = parser.parse_args()
 
     # 检查是否在macOS上运行并给出适当的提示
-    if platform.system() == "Darwin":
+    if platform.system() == "Darwin" and not args.y:
         print("\n===================================================")
         print("注意: 在macOS上运行MuJoCo查看器需要使用mjpython")
         print("请使用以下命令运行此脚本:")

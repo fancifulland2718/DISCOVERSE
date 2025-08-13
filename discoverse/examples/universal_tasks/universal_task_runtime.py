@@ -70,7 +70,7 @@ class UniversalRuntimeTaskExecutor:
         print(f"🔍 关节位置传感器索引: {self.joint_pos_sensor_idx}")
 
         self.mujoco_ctrl_dim = mj_model.nu
-        self.move_speed = 0.75  # 控制速度
+        self.move_speed = 1.5  # 控制速度
         self.max_time = 20.0  # 最大执行时间（仿真时间，非真实时间）
 
         self.task.randomizer.set_viewer(viewer)

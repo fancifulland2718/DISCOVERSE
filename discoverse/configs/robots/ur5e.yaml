@@ -54,11 +54,20 @@ control:
     - name: "gripper"                # 夹爪控制
       type: "position"
 
-# ============== 坐标系配置 ==============
-coordinate_frames:
-  base_frame: "base"                 # 基座坐标系
-  planning_frame: "base"             # 规划坐标系
-  tcp_frame: "endpoint"              # 工具中心点坐标系
+# ============== 传感器配置 ==============
+sensors:
+  joint_pos_sensors:
+    - "shoulder_pan_pos"
+    - "shoulder_lift_pos"
+    - "elbow_pos"
+    - "wrist_1_pos"
+    - "wrist_2_pos"
+    - "wrist_3_pos"
+    - "gripper_pos"
+
+  end_effector_sensors:
+    position: "endpoint_pos"         # 末端位置
+    orientation: "endpoint_quat"     # 末端姿态
 
 # ============== IK求解配置 ==============
 ik_solver:
@@ -71,15 +80,3 @@ ik_solver:
   orientation_cost: 10.0             # 姿态权重
   posture_cost: 0.01                 # 姿态保持权重
   dt: 0.002                          # 积分时间步长
-
-# ============== 传感器配置 ==============
-sensors:
-  joint_states: true                 # 关节状态传感器
-  end_effector_wrench: false         # 末端力/力矩传感器
-  joint_torques: true                # 关节力矩传感器
-
-# ============== MJCF模型路径 ==============
-mjcf_model:
-  base_path: "models/mjcf/manipulator/robot_ur5e.xml"
-  dependencies:
-    - "models/mjcf/manipulator/universal_robots_ur5e/"

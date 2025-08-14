@@ -28,7 +28,6 @@ randomization:
   # 物体随机化
   objects:
     - name: "coffeecup_white"
-      coordinate_system: "armbase"
       x_range: [0.2, 0.4]
       y_range: [-0.2, 0.2]
       collision_radius: 0.1  # 咖啡杯需要较大操作空间，最小距离15cm
@@ -115,8 +114,6 @@ states:
     params:
       object_name: "coffeecup_white"
       offset: [0.1, 0, 0.1]  # X方向(杯把方向)和Z方向偏移
-      approach_direction: "handle"
-      coordinate_system: "world"
     gripper_state: "open"
 
   # 状态1: 移动到杯把位置
@@ -125,6 +122,4 @@ states:
     params:
       object_name: "coffeecup_white"
       offset: [0.045, 0, 0.05]  # 杯把的具体位置
-      approach_direction: "handle"
-      coordinate_system: "world"
     gripper_state: "open"

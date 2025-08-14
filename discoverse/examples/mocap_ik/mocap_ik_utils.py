@@ -1,6 +1,7 @@
 import os
 import mujoco
 import numpy as np
+from scipy.spatial.transform import Rotation
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 

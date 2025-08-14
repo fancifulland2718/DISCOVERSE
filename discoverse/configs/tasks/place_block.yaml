@@ -21,14 +21,12 @@ randomization:
   # 物体随机化
   objects:
     - name: "block_green"
-      coordinate_system: "armbase"
       x_range: [0.2, 0.4]
       y_range: [-0.2, 0.2]
       collision_radius: 0.05  # 方块碰撞检测半径5cm
       description: "绿色方块位置大范围随机化"
       
     - name: "bowl_pink"
-      coordinate_system: "armbase"
       x_range: [0.2, 0.4]
       y_range: [-0.2, 0.2]
       collision_radius: 0.12  # 碗的直径较大，需要更大的避让距离

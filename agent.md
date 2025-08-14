@@ -349,8 +349,6 @@ states:
     params:
       object_name: "block_green"
       offset: [0, 0, 0.1]
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "open"
     
   - name: "state_name_1" 
@@ -380,8 +378,6 @@ states:
 params:
   object_name: "物体名称"
   offset: [x, y, z]  # 相对物体的偏移
-  approach_direction: "top_down"  # 接近方向
-  coordinate_system: "world"  # 坐标系
 
 # move_relative 参数  
 params:

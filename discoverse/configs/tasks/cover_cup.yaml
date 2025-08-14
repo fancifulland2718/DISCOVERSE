@@ -45,21 +45,18 @@ randomization:
   # 物体随机化 
   objects:
     - name: "coffeecup_white"
-      coordinate_system: "armbase"
       x_range: [0.2, 0.4]  # X轴范围 [15cm, 30cm]
       y_range: [-0.2, 0.2]  # Y轴范围 [-20cm, 20cm] 
       collision_radius: 0.05  # 咖啡杯碰撞检测半径8cm
       description: "咖啡杯位置随机化（边界框模式）"
       
     - name: "plate_white"
-      coordinate_system: "armbase"
       x_range: [0.2, 0.4]  # X轴范围 [15cm, 30cm]
       y_range: [-0.2, 0.2]  # Y轴范围 [-20cm, 20cm]
       collision_radius: 0.1  # 盘子碰撞检测半径10cm
       description: "白色盘子位置随机化（边界框模式）"
       
     - name: "cup_lid"
-      coordinate_system: "armbase"
       x_range: [0.2, 0.4]  # X轴范围 [15cm, 30cm]
       y_range: [-0.2, 0.2]  # Y轴范围 [-20cm, 20cm]
       collision_radius: 0.05  # 杯盖碰撞检测半径6cm
@@ -213,7 +210,6 @@ states:
     params:
       object_name: "cup_lid"
       offset: [0, 0, 0.1]  # 杯盖上方10cm
-      approach_direction: "top_down"
     gripper_state: "open"
     
   # 状态10: 下降到杯盖
@@ -222,7 +218,6 @@ states:
     params:
       object_name: "cup_lid"
       offset: [0, 0, 0.045]  # 接近杯盖
-      approach_direction: "top_down"
     gripper_state: "open"
     
   # 状态11: 抓住杯盖

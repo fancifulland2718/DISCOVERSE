@@ -13,6 +13,7 @@ from discoverse.envs import make_env
 from discoverse.examples.mocap_ik.mocap_ik_utils import \
     add_mocup_body_to_mjcf, \
     generate_mocap_xml
+from discoverse.utils import get_body_tmat
 
 from discoverse import DISCOVERSE_ASSETS_DIR
 
@@ -182,9 +183,15 @@ if __name__ == "__main__":
     mink_tasks = [end_effector_task, posture_task]
     
     try:
+        def key_press_callback(key):
+            pass
+
         # 启动MuJoCo查看器
         with mujoco.viewer.launch_passive(
-            mj_model, mj_data, show_left_ui=False, show_right_ui=False
+            mj_model, mj_data, 
+            show_left_ui=False, 
+            show_right_ui=False,
+            key_callback=key_press_callback
         ) as viewer:
 
             # 设置渲染帧率
@@ -201,9 +208,16 @@ if __name__ == "__main__":
             # Move the mocap target to the end-effector's current pose
             mink.move_mocap_to_frame(mj_model, mj_data, mocap_name, "endpoint", "site")
 
+            last_select = viewer.perturb.select
+            last_mj_time = mj_data.time
             while viewer.is_running():
                 # 记录步骤开始时间
                 step_start = time.time()
+
+                if last_mj_time > mj_data.time:
+                    # after reset signal
+                    mink.move_mocap_to_frame(mj_model, mj_data, mocap_name, "endpoint", "site")
+                    configuration.update(mj_data.qpos)
 
                 T_wt = mink.SE3.from_mocap_name(mj_model, mj_data, "target")
                 end_effector_task.set_target(T_wt)
@@ -229,10 +243,24 @@ if __name__ == "__main__":
                 for _ in range(render_gap):
                     # 执行物理仿真步骤
                     mujoco.mj_step(mj_model, mj_data)
+                last_mj_time = mj_data.time
 
                 # 同步查看器状态
                 viewer.sync()
-                
+
+                if last_select != viewer.perturb.select:
+                    body_name = mj_model.body(viewer.perturb.select).name
+                    print(f"选择物体: {body_name}")
+                    tmat_body = get_body_tmat(mj_data, body_name)
+                    if body_name != "target":
+                        print(">>> select object:")
+                        print(tmat_body)
+                    print(">>> target_body: ")
+                    print(T_wt.as_matrix())
+                    print(">>> object2target")
+                    print(tmat_body.inv() @ T_wt.as_matrix())
+                    last_select = viewer.perturb.select
+
                 # 计算下一步开始前需要等待的时间，保证帧率稳定
                 time_until_next_step = (1. / render_fps) - (time.time() - step_start)
                 if time_until_next_step > 0:

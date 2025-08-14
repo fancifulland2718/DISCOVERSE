@@ -55,8 +55,6 @@ task_states:
     params:
       object_name: "${source_object}"
       offset: [0, 0, "${approach_height}"]
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "open"
 
   # 状态1: 下降到抓取位置
@@ -65,8 +63,6 @@ task_states:
     params:
       object_name: "${source_object}"
       offset: [0, 0, "${grasp_height}"]
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "open"
 
   # 状态2: 抓取物体
@@ -91,8 +87,6 @@ task_states:
     params:
       object_name: "${target_location}"
       offset: [0, 0, "${place_height}"]
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "close"
 
   # 状态5: 下降到放置位置
@@ -101,8 +95,6 @@ task_states:
     params:
       object_name: "${target_location}"
       offset: [0, 0, "${final_height}"]
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "close"
 
   # 状态6: 释放物体
@@ -128,8 +120,6 @@ states:
     params:
       object_name: "${source_object}"
       offset: [0, 0, "${approach_height}"]
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "open"
 
   # 状态1: 下降到抓取位置
@@ -138,8 +128,6 @@ states:
     params:
       object_name: "${source_object}"
       offset: [0, 0, "${grasp_height}"]
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "open"
 
   # 状态2: 等待位置稳定
@@ -183,8 +171,6 @@ states:
     params:
       object_name: "${target_location}"
       offset: ["${release_bias_x}", "${release_bias_y}", "${place_height}"]
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "close"
 
   # 状态7: 下降到放置位置
@@ -193,8 +179,6 @@ states:
     params:
       object_name: "${target_location}"
       offset: ["${release_bias_x}", "${release_bias_y}", "${final_height}"]
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "close"
 
   # 状态8: 释放物体

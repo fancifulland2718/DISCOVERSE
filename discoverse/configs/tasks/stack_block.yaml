@@ -126,8 +126,6 @@ states:
     params:
       object_name: "block_green"
       offset: [0, 0, 0.1]  # approach_height
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "open"
     
   # 状态1: 移动到绿色方块
@@ -136,8 +134,6 @@ states:
     params:
       object_name: "block_green"
       offset: [0, 0, 0.005]  # grasp_height
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "open"
     
   # 状态2: 等待位置稳定
@@ -171,8 +167,6 @@ states:
     params:
       object_name: "block_blue"
       offset: [0, 0, 0.13]  # stack_height_1
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "close"
     
   # 状态6: 降低高度放到蓝色方块上
@@ -205,8 +199,6 @@ states:
     params:
       object_name: "block_red"
       offset: [0, 0, 0.1]  # approach_height
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "open"
     
   # 状态10: 移动到红色方块
@@ -215,8 +207,6 @@ states:
     params:
       object_name: "block_red"
       offset: [0, 0, 0.005]  # grasp_height
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "open"
     
   # 状态11: 等待位置稳定
@@ -250,8 +240,6 @@ states:
     params:
       object_name: "block_green"
       offset: [0, 0, 0.10]  # stack_height_2
-      approach_direction: "top_down"
-      coordinate_system: "world"
     gripper_state: "close"
     
   # 状态15: 降低高度放到绿色方块上

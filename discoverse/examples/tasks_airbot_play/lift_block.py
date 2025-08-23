@@ -16,15 +16,24 @@ class SimNode(AirbotPlayTaskBase):
         super().__init__(config)
         self.camera_0_pose = (self.mj_model.camera("eye_side").pos.copy(), self.mj_model.camera("eye_side").quat.copy())
 
+        self.camera_pose_random = 1
+        self.yaw_range = np.pi/4. * np.array([-1, 1])
+        # self.yaw_range[1] = 0.0
+
     def domain_randomization(self):
         # 随机 枣位置
         self.object_pose("block_green")[:2] += 2.*(np.random.random(2) - 0.5) * np.array([0.1, 0.05])
 
         # 随机 eye side 视角
-        # camera = self.mj_model.camera("eye_side")
-        # camera.pos[:] = self.camera_0_pose[0] + 2.*(np.random.random(3) - 0.5) * 0.05
-        # euler = Rotation.from_quat(self.camera_0_pose[1][[1,2,3,0]]).as_euler("xyz", degrees=False) + 2.*(np.random.random(3) - 0.5) * 0.05
-        # camera.quat[:] = Rotation.from_euler("xyz", euler, degrees=False).as_quat()[[3,0,1,2]]
+        if self.camera_pose_random:
+            dis = 0.65
+            yaw = np.pi + np.random.uniform(self.yaw_range[0], self.yaw_range[1])
+            tpos = get_body_tmat(self.mj_data, "viewpoint")[:3, 3]
+            camera = self.mj_model.camera("eye_side")
+            camera.pos[0] = tpos[0] + dis * np.cos(yaw)
+            camera.pos[1] = tpos[1] + dis * np.sin(yaw)
+            camera.pos[2] = tpos[2] * np.random.uniform(0.95, 1.05)
+        print(camera.pos)
 
     def check_success(self):
         tmat_jujube = get_body_tmat(self.mj_data, "block_green")
@@ -117,7 +126,7 @@ if __name__ == "__main__":
                     tmat_tgt_local = tmat_armbase_2_world @ tmat_jujube
                     sim_node.target_control[:6] = arm_ik.properIK(tmat_tgt_local[:3,3], trmat, sim_node.mj_data.qpos[:6])
                 elif stm.state_idx == 2: # 抓住枣
-                    sim_node.target_control[6] = 0.
+                    sim_node.target_control[6] = 0.4
                 elif stm.state_idx == 3: # 抓稳枣
                     sim_node.delay_cnt = int(0.35/sim_node.delta_t)
                 elif stm.state_idx == 4: # 提起来枣

@@ -9,6 +9,7 @@ from discoverse.robots_env.airbot_play_base import AirbotPlayCfg
 from discoverse.utils import get_body_tmat, get_site_tmat, step_func, SimpleStateMachine
 from discoverse.task_base import AirbotPlayTaskBase, recoder_airbot_play, copypy2
 from discoverse.task_base.airbot_task_base import PyavImageEncoder
+from pathlib import Path
 
 
 class SimNode(AirbotPlayTaskBase):
@@ -155,11 +156,21 @@ if __name__ == "__main__":
 
         obs, _, _, _, _ = sim_node.step(action)
         if len(obs_lst) < sim_node.mj_data.time * cfg.render_set["fps"]:
-            imgs = obs.pop('img')
+            rgb_imgs = obs.pop('img')
+            depth_imgs = obs.pop('depth')
+            point_cloud = obs.pop('point_cloud')
             act_lst.append(action.tolist().copy())
             obs_lst.append(obs)
-            for cam_id, img in imgs.items():
+            for cam_id, img in rgb_imgs.items():
                 encoders[cam_id].encode(img, obs["time"])
+            for cam_id, depth in depth_imgs.items():
+                depth_path = Path(save_path) / f"depth/{cam_id}/{len(obs_lst) - 1}"
+                depth_path.parent.mkdir(parents=True, exist_ok=True)
+                np.save(depth_path, depth)
+            for cam_id, pc in point_cloud.items():
+                pc_path = Path(save_path) / f"point_cloud/{cam_id}/{len(obs_lst) - 1}"
+                pc_path.parent.mkdir(parents=True, exist_ok=True)
+                np.save(pc_path, pc)
 
         if stm.state_idx >= stm.max_state_cnt:
             for encoder in encoders.values():

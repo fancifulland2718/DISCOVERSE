@@ -12,6 +12,7 @@ class BaseConfig:
     }
     obs_rgb_cam_id = None
     obs_depth_cam_id = None
+    obs_point_cloud_id = None
     rb_link_list   = []
     obj_list       = []
     gs_model_dict  = {}

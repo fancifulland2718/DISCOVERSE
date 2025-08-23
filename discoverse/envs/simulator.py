@@ -45,6 +45,7 @@ class SimulatorBase:
     obs = None
     img_rgb_obs_s = {}
     img_depth_obs_s = {}
+    img_point_cloud_obs_s = {}
     free_body_qpos_ids = {}
 
     cam_id = -1  # -1表示自由视角
@@ -363,6 +364,9 @@ class SimulatorBase:
         for id in self.config.obs_depth_cam_id:
             img = self.getDepthImg(id)
             self.img_depth_obs_s[id] = img
+        for id in self.config.obs_point_cloud_id:
+            pc = self.getPointCloud(id)
+            self.img_point_cloud_obs_s[id] = pc
         self.renderer._depth_rendering = depth_rendering
         
         if not self.config.headless and self.window is not None:
@@ -478,8 +482,8 @@ class SimulatorBase:
         cx, cy = width / 2, height / 2
         inv_fx, inv_fy = 1.0 / fx, 1.0 / fy
 
-        rgb = self.obs["rgb"][cam_id][::N_gap, ::N_gap]
-        depth = self.obs["depth"][cam_id][::N_gap, ::N_gap]
+        rgb = self.img_rgb_obs_s[cam_id][::N_gap, ::N_gap]
+        depth = self.img_depth_obs_s[cam_id][::N_gap, ::N_gap]
 
         rows, cols = depth.shape
         u = (np.arange(cols) * N_gap).astype(np.float32)

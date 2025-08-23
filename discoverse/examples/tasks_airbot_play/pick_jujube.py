@@ -53,6 +53,8 @@ cfg.render_set   = {
     "height" : 480
 }
 cfg.obs_rgb_cam_id = [0, 1]
+cfg.obs_depth_cam_id = [0, 1]
+cfg.obs_point_cloud_id = [0, 1]
 cfg.save_mjb_and_task_config = True
 
 if __name__ == "__main__":

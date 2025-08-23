@@ -93,7 +93,8 @@ class AirbotPlayBase(SimulatorBase):
             "ep"   : self.sensor_endpoint_posi_local.tolist(),
             "eq"   : self.sensor_endpoint_quat_local.tolist(),
             "img"  : self.img_rgb_obs_s.copy(),
-            "depth" : self.img_depth_obs_s.copy()
+            "depth" : self.img_depth_obs_s.copy(),
+            "point_cloud": self.img_point_cloud_obs_s.copy()
         }
         return self.obs
 

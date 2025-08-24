@@ -163,10 +163,10 @@ if __name__ == "__main__":
             obs_lst.append(obs)
             for cam_id, img in rgb_imgs.items():
                 encoders[cam_id].encode(img, obs["time"])
-            for cam_id, depth in depth_imgs.items():
-                depth_path = Path(save_path) / f"depth/{cam_id}/{len(obs_lst) - 1}"
-                depth_path.parent.mkdir(parents=True, exist_ok=True)
-                np.save(depth_path, depth)
+            # for cam_id, depth in depth_imgs.items():
+            #     depth_path = Path(save_path) / f"depth/{cam_id}/{len(obs_lst) - 1}"
+            #     depth_path.parent.mkdir(parents=True, exist_ok=True)
+            #     np.save(depth_path, depth)
             for cam_id, pc in point_cloud.items():
                 pc_path = Path(save_path) / f"point_cloud/{cam_id}/{len(obs_lst) - 1}"
                 pc_path.parent.mkdir(parents=True, exist_ok=True)

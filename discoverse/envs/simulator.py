@@ -248,7 +248,15 @@ class SimulatorBase:
                     assert -2 < cam_id < len(self.camera_names), "Invalid obs_depth_cam_id {}".format(cam_id)
             elif self.config.obs_depth_cam_id is None:
                 self.config.obs_depth_cam_id = []
-        
+
+            if type(self.config.obs_point_cloud_id) is int:
+                assert -2 < self.config.obs_point_cloud_id < len(self.camera_names), "Invalid obs_point_cloud_id {}".format(self.config.obs_point_cloud_id)
+            elif type(self.config.obs_point_cloud_id) is list:
+                for cam_id in self.config.obs_point_cloud_id:
+                    assert -2 < cam_id < len(self.camera_names), "Invalid obs_point_cloud_id {}".format(cam_id)
+            elif self.config.obs_point_cloud_id is None:
+                self.config.obs_point_cloud_id = []
+
             try:
                 import screeninfo
                 monitors = screeninfo.get_monitors()

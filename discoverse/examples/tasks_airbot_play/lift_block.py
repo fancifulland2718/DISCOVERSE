@@ -170,7 +170,8 @@ if __name__ == "__main__":
             for cam_id, pc in point_cloud.items():
                 pc_path = Path(save_path) / f"point_cloud/{cam_id}/{len(obs_lst) - 1}"
                 pc_path.parent.mkdir(parents=True, exist_ok=True)
-                np.save(pc_path, pc)
+                # print(pc[0][0], len(pc[0]))
+                np.save(pc_path, pc[0])
 
         if stm.state_idx >= stm.max_state_cnt:
             for encoder in encoders.values():

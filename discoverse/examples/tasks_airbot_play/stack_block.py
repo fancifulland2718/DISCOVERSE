@@ -84,8 +84,7 @@ cfg.render_set   = {
     "width"  : 448,
     "height" : 448
 }
-# cfg.obs_rgb_cam_id = [0, 1]
-cfg.obs_rgb_cam_id = [0]
+cfg.obs_rgb_cam_id = [0, 1]
 cfg.save_mjb_and_task_config = True
 
 if __name__ == "__main__":
@@ -104,7 +103,7 @@ if __name__ == "__main__":
     if args.auto:
         cfg.headless = True
         cfg.sync = False
-    cfg.sync = False
+
     cfg.use_gaussian_renderer = args.use_gs
 
     save_dir = os.path.join(DISCOVERSE_ROOT_DIR, "data", os.path.splitext(os.path.basename(__file__))[0])
@@ -137,7 +136,7 @@ if __name__ == "__main__":
             act_lst, obs_lst = [], []
             save_path = os.path.join(save_dir, "{:03d}".format(data_idx))
             os.makedirs(save_path, exist_ok=True)
-            encoders = {cam_id: PyavImageEncoder(20, cfg.render_set["width"], cfg.render_set["height"], save_path, cam_id) for cam_id in cfg.obs_rgb_cam_id}
+            encoders = {cam_id: PyavImageEncoder(cfg.render_set["width"], cfg.render_set["height"], save_path, cam_id) for cam_id in cfg.obs_rgb_cam_id}
 
         try:
             if stm.trigger():
@@ -245,5 +244,7 @@ if __name__ == "__main__":
                     break
             else:
                 print(f"{data_idx} Failed")
+                for encoder in encoders.values():
+                    encoder.remove_av_file()
 
             sim_node.reset()

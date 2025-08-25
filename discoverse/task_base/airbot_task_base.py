@@ -12,11 +12,13 @@ import av
 
 class PyavImageEncoder:
 
-    def __init__(self, fps, width, height, save_path, id):
-        self.fps = fps
+    def __init__(self, width, height, save_path, id):
         self.width = width
         self.height = height
-        container = av.open(os.path.join(save_path, f"cam_{id}.mp4"), "w", format="mp4")
+        self.av_file_path = os.path.join(save_path, f"cam_{id}.mp4")
+        if os.path.exists(self.av_file_path):
+            os.remove(self.av_file_path)
+        container = av.open(self.av_file_path, "w", format="mp4")
         stream: av.video.stream.VideoStream = container.add_stream("h264", options={"preset": "fast"})
         stream.width = width
         stream.height = height
@@ -52,6 +54,10 @@ class PyavImageEncoder:
             self.container.close()
         self.container = None
 
+    def remove_av_file(self):
+        if os.path.exists(self.av_file_path):
+            os.remove(self.av_file_path)
+            print(f">>>>> Removed {self.av_file_path}")
 
 def recoder_airbot_play(save_path, act_lst, obs_lst, cfg: AirbotPlayCfg):
     os.makedirs(save_path, exist_ok=True)

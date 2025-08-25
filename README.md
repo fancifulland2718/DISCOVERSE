@@ -2,82 +2,35 @@
 
 <div align="center">
 
-[![Paper](https://img.shields.io/badge/Paper-arXiv-red.svg)](https://arxiv.org/pdf/2507.21981)
+[![Paper](https://img.shields.io/badge/Paper-arXiv-red.svg)](https://arxiv.org/abs/2507.21981)
 [![Website](https://img.shields.io/badge/Website-DISCOVERSE-blue.svg)](https://air-discoverse.github.io/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
-[![Docker](https://img.shields.io/badge/Docker-Available-blue.svg)](doc/docker.md)
+[![Docker](https://img.shields.io/badge/Docker-Available-blue.svg)](#docker-quick-start)
 
 https://github.com/user-attachments/assets/78893813-d3fd-48a1-8bb4-5b0d87bf900f
 
 *A unified, modular, open-source 3DGS-based simulation framework for Real2Sim2Real robot learning*
-
 </div>
 
 [中文文档](README_zh.md)
 
-## 🌟 I. Key Features
+<div align="center">
+<h1>
+🎉 DISCOVERSE Accepted by IROS 2025!
+</h1>
+</div>
 
-### 🎯 **High-Fidelity Real2Sim Generation**
-- **Hierarchical scene reconstruction** for both background environments and interactive objects
-- **Advanced laser-scanning integration** with LiDAR sensors for precise geometry capture
-- **AI-powered 3D generation** using state-of-the-art generative models
-- **Comprehensive randomization** including generative-based domain adaptation
+Our paper "DISCOVERSE: Efficient Robot Simulation in Complex High-Fidelity Environments" has been accepted by IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS) 2025.
 
-### 🔧 **Universal Compatibility & Flexibility**
-- **Multi-format asset support**: 3DGS (.ply), Mesh (.obj/.stl), MJCF (.xml)
-- **Diverse robot platforms**: Robotic arms, mobile manipulators, quadcopters, humanoids
-- **Multiple sensor modalities**: RGB, Depth, LiDAR, IMU, tactile sensors
-- **ROS2 integration** with seamless real-world deployment
 
-### 🎓 **End-to-End Learning Pipeline**
-- **Automated data collection** with 100× efficiency improvement over real-world
-- **Multiple learning algorithms**: ACT, Diffusion Policy, RDT, and more
-- **Zero-shot Sim2Real transfer** with state-of-the-art performance
-- **Imitation learning workflows** from demonstration to deployment
 
-## 📦 II. Installation & Quick Start
 
-### Prerequisites
-- **Python 3.8+**
-- **CUDA 11.8+** (for 3DGS rendering)
-- **NVIDIA GPU** with 8GB+ VRAM (recommended)
+## 📦 Installation & Quick Start
 
 ### Quick Start
 
-1. Clone repository (recommended: download submodules on-demand, don't use --recursive)
-```bash
-git clone https://github.com/TATP-233/DISCOVERSE.git
-cd DISCOVERSE
-```
-
-2. Choose installation method
-```bash
-conda create -n discoverse python=3.10 # >=3.8 is ok
-conda activate discoverse
-
-pip install -e .              # Core only (recommended for quick start)
-pip install -e ".[lidar]"     # LiDAR simulation
-pip install -e ".[act_full]"  # Imitation learning with ACT, can replace with [dp_full] [rdt_full]
-pip install -e ".[full]"      # Full features (not recommended)
-```
-
-3. Download submodules on-demand (based on installed feature modules)
-```bash
-python scripts/setup_submodules.py        # Auto-detect and download required submodules
-# python scripts/setup_submodules.py --module lidar act  # Manually specify modules
-# python scripts/setup_submodules.py --all  # Download all submodules
-```
-
-4. Verify installation
-```bash
-python scripts/check_installation.py
-```
-
-5. Update Assets
-
-Project model files are managed through `Git LFS` for version control, ensuring you get the latest versions:
-
+1. Clone repository
 ```bash
 # Install Git LFS (if not already installed)
 ## Linux
@@ -87,10 +40,21 @@ sudo apt-get install git-lfs
 ## macOS using Homebrew
 brew install git-lfs
 
-git lfs install
+git clone https://github.com/TATP-233/DISCOVERSE.git
+cd DISCOVERSE
+```
 
-# Pull LFS files in the repository
-git lfs pull
+2. Choose installation method
+```bash
+conda create -n discoverse python=3.10 # >=3.8 is ok
+conda activate discoverse
+pip install -e .
+
+## Auto-detect and download required submodules
+python scripts/setup_submodules.py
+
+## Verify installation
+python scripts/check_installation.py
 ```
 
 ### Installation by Use Case
@@ -101,7 +65,7 @@ pip install -e .  # Core functionality only
 ```
 **Includes**: MuJoCo, OpenCV, NumPy and other basic dependencies
 
-#### Scenario 2: LiDAR SLAM Research
+#### Scenario 2: LiDAR SLAM
 ```bash
 pip install -e ".[lidar,visualization]"
 ```
@@ -128,46 +92,7 @@ pip install -e ".[gaussian-rendering]"
 - **Dependencies**: `torch>=2.0.0`, `torchvision>=0.14.0`, `plyfile`, `PyGlm`
 - **Use Cases**: High-fidelity visual simulation, 3D scene reconstruction, Real2Sim pipeline
 
-#### Scenario 5: Data Processing & Augmentation Toolkit
-```bash
-pip install -e ".[data-collection]"  # Data collection
-pip install -e ".[randomain]"        # Data augmentation and AI generation
-pip install -e ".[visualization]"    # Visualization tools
-```
-- **Function**: Dataset construction, domain randomization
-
-#### Scenario 6: Hardware Integration
-```bash
-pip install -e ".[realsense]"    # RealSense camera support
-pip install -e ".[ros]"          # ROS integration
-pip install -e ".[hardware]"     # Hardware integration suite
-```
-- **Function**: Real robot control, hardware-in-the-loop simulation, Sim2Real transfer
-
-#### Scenario 7: XML Scene Editor
-```bash
-pip install -e ".[xml-editor]"
-```
-- **Function**: Graphical MuJoCo scene editing tool
-- **Dependencies**: `PyQt5>=5.15.0`, `PyOpenGL>=3.1.0`
-- **Use Cases**: Visual scene design, MJCF file editing, 3D model adjustment
-
-#### Scenario 8: Complete Research Environment (not recommended, install based on your needs)
-```bash
-pip install -e ".[full]"
-```
-- **Includes**: All feature modules
-
-### 🔍 Installation Verification
-
-Check installation status
-
-```bash
-python scripts/check_installation.py           # Basic check
-python scripts/check_installation.py --verbose # Detailed information
-```
-
-### 📊 Module Feature Overview
+### Module Feature Overview
 
 | Module | Install Command | Function | Use Cases |
 |--------|-----------------|----------|-----------|
@@ -180,9 +105,11 @@ python scripts/check_installation.py --verbose # Detailed information
 | **RDT** | `.[rdt]` | Large model policy | General robot skills |
 | **Hardware Integration** | `.[hardware]` | RealSense+ROS | Real robot control |
 
-## 🐳 III. Docker Quick Start
+### Docker Quick Start
 
-### 1. Install NVIDIA Container Toolkit:
+We provide Docker installation method.
+
+#### 1. Install NVIDIA Container Toolkit:
 ```bash
 # Set up repository
 distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
@@ -228,7 +155,6 @@ docker run -dit --rm --name discoverse \
     --gpus all \
     -e DISPLAY=$DISPLAY \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
-    --device /dev/dri \
     discoverse:latest
 # Note: Replace `latest` with the actual docker image tag (e.g., v1.8.6).
 
@@ -237,11 +163,14 @@ xhost +local:docker
 
 # Enter container terminal
 docker exec -it discoverse bash
+
+# Test run
+python3 discoverse/examples/active_slam/camera_view.py
 ```
 
-## 📷 IV. High-Fidelity Rendering Setup
+## 📷 High-Fidelity Rendering Setup
 
-For high-fidelity 3DGS rendering functionality, if you don't need high-fidelity rendering, you can skip this section.
+For high-fidelity 3DGS rendering functionality, if you don't need high-fidelity rendering or are using docker installation, you can skip this section.
 
 ### 1. CUDA Installation
 Install CUDA 11.8+ from [NVIDIA's official site](https://developer.nvidia.com/cuda-toolkit-archive), choose the corresponding CUDA version based on your graphics card driver.
@@ -285,7 +214,7 @@ models/
 └── urdf/           # Robot descriptions
 ```
 
-### 4. Model Visualization
+### 3. Model Visualization
 View and edit 3DGS models online using [SuperSplat](https://playcanvas.com/supersplat/editor) - simply drag and drop `.ply` files.
 
 ## 🔨 Real2Sim Pipeline
@@ -294,7 +223,7 @@ View and edit 3DGS models online using [SuperSplat](https://playcanvas.com/super
 
 DISCOVERSE features a comprehensive Real2Sim pipeline for creating digital twins of real environments. For detailed instructions, visit our [Real2Sim repository](https://github.com/GuangyuWang99/DISCOVERSE-Real2Sim).
 
-## 💡 V. Usage Examples
+## 💡 Usage Examples
 
 ### Basic Robot Simulation
 ```bash
@@ -326,24 +255,8 @@ https://github.com/user-attachments/assets/6d80119a-31e1-4ddf-9af5-ee28e949ea81
 - **'Ctrl+g'** - Toggle Gaussian rendering (requires gaussian-splatting installation and set cfg.use_gaussian_renderer = False)
 - **'Ctrl+d'** - Toggle depth visualization
 
-### More Applications
 
-#### Active SLAM
-
-Requires 3DGS dependencies installation and downloading corresponding .ply models, refer to `IV. High-Fidelity Rendering Setup`
-
-```bash
-python discoverse/examples/active_slam/dummy_robot.py
-```
-<img src="./assets/active_slam.jpg" alt="Active SLAM" style="zoom: 33%;" />
-
-#### Multi-Agent Coordination
-```bash
-python discoverse/examples/skyrover_on_rm2car/skyrover_and_rm2car.py
-```
-<img src="./assets/skyrover.png" alt="Multi-agent collaboration" style="zoom: 50%;" />
-
-## 🎓 VI. Learning & Training
+## 🎓 Learning & Training
 
 ### Imitation Learning Quick Start
 
@@ -354,41 +267,12 @@ DISCOVERSE provides complete workflows for data collection, training, and infere
 3. **Policy Inference**: [Guide](./doc/imitation_learning/inference.md)
 
 ### Supported Algorithms
-- **ACT** (Action Chunking with Transformers)
+- **ACT**
 - **Diffusion Policy** 
-- **RDT** (Robotics Diffusion Transformer)
+- **RDT**
 - **Custom algorithms** via extensible framework
 
-### Domain Randomization
-<div align="center">
-
-https://github.com/user-attachments/assets/848db380-557c-469d-b274-2c9addf0b6bb
-
-*Advanced image randomization powered by generative models*
-</div>
-
-DISCOVERSE incorporates state-of-the-art randomization techniques including:
-- **Generative image synthesis** for diverse visual conditions
-- **Physics parameter randomization** for robust policies
-- **Lighting and material variations** for photorealistic adaptation
-
-See our [randomization guide](doc/automated_data_generation.md) for implementation details.
-
-## 🏆 VII. Performance Benchmarks
-
-DISCOVERSE demonstrates superior Sim2Real transfer performance:
-
-| Method | Close Laptop | Push Mouse | Pick Kiwi | **Average** |
-|--------|-------------|------------|-----------|-------------|
-| MuJoCo | 2% | 48% | 8% | 19.3% |
-| SAPIEN | 0% | 24% | 0% | 8.0% |
-| SplatSim | 56% | 68% | 26% | 50.0% |
-| **DISCOVERSE** | **66%** | **74%** | **48%** | **62.7%** |
-| **DISCOVERSE + Aug** | **86%** | **90%** | **76%** | **84.0%** |
-
-*Zero-shot Sim2Real success rates using ACT policy*
-
-## ⏩ VIII. Recent Updates
+## ⏩ Recent Updates
 
 - **2025.01.13**: 🎉 DISCOVERSE open source release
 - **2025.01.16**: 🐳 Docker support added
@@ -396,49 +280,32 @@ DISCOVERSE demonstrates superior Sim2Real transfer performance:
 - **2025.02.17**: 📈 Diffusion Policy baseline integration
 - **2025.02.19**: 📡 Point cloud sensor support added
 
-## 🤝 IX. Community & Support
-
-### Getting Help
-- 📖 **Documentation**: Comprehensive guides in `/doc` directory
-- 💬 **Issues**: Report bugs and request features via GitHub Issues
-- 🔄 **Discussions**: Join community discussions for Q&A and collaboration
-
-### Contributing
-We welcome contributions! Please see our contributing guidelines and join our growing community of robotics researchers and developers.
+## 🤝 Community & Support
 
 <div align="center">
-<img src="./assets/wechat.jpeg" alt="WeChat Community" style="zoom:50%;" />
+<img src="./assets/wechat.png" alt="WeChat Community" style="zoom:50%;" />
 
 *Join our WeChat community for updates and discussions*
 </div>
 
-## ❔ X. Troubleshooting
+## ❔ Troubleshooting
 
 For installation and runtime issues, please refer to our comprehensive **[Troubleshooting Guide](doc/troubleshooting.md)**.
 
-## ⚖️ XI. License
+## ⚖️ License
 
 DISCOVERSE is released under the [MIT License](LICENSE). See the license file for details.
 
-## 📜 XII. Citation
+## 📜 Citation
 
 If you find DISCOVERSE helpful in your research, please consider citing our work:
 
 ```bibtex
-@misc{discoverse2024,
+@article{jia2025discoverse,
       title={DISCOVERSE: Efficient Robot Simulation in Complex High-Fidelity Environments},
-      author={Yufei Jia and Guangyu Wang and Yuhang Dong and Junzhe Wu and Yupei Zeng and Haizhou Ge and Kairui Ding and Zike Yan and Weibin Gu and Chuxuan Li and Ziming Wang and Yunjie Cheng and Wei Sui and Ruqi Huang and Guyue Zhou},
-      url={https://air-discoverse.github.io/},
-      year={2024}
+      author={Yufei Jia and Guangyu Wang and Yuhang Dong and Junzhe Wu and Yupei Zeng and Haonan Lin and Zifan Wang and Haizhou Ge and Weibin Gu and Chuxuan Li and Ziming Wang and Yunjie Cheng and Wei Sui and Ruqi Huang and Guyue Zhou},
+      journal={arXiv preprint arXiv:2507.21981},
+      year={2025},
+      url={https://arxiv.org/abs/2507.21981}
 }
 ```
-
----
-
-<div align="center">
-
-**DISCOVERSE** - *Bridging the gap between simulation and reality for next-generation robotics*
-
-[🌐 Website](https://air-discoverse.github.io/) | [📄 Paper](https://air-discoverse.github.io/) | [🐳 Docker](doc/docker.md) | [📚 Documentation](doc/) | [🏆 Competition](https://sim2real.net/track/track?nav=S2R2025)
-
-</div>

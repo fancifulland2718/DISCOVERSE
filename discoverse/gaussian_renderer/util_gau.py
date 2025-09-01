@@ -48,7 +48,7 @@ class Camera:
         self.fovy = 1.05
         self.position = np.array([0.0, 0.0, -2.0]).astype(np.float32)
         self.target = np.array([0.0, 0.0, 0.0]).astype(np.float32)
-        self.up = np.array([0.0, 1.0, 0.0]).astype(np.float32)
+        self.up = np.array([0.0, 0.0, 1.0]).astype(np.float32)
         self.yaw = -np.pi / 2
         self.pitch = 0
 
@@ -76,7 +76,8 @@ class Camera:
         return np.stack([x, self.up, z], axis=-1)
 
     def get_view_matrix(self):
-        return np.array(glm.lookAt(self.position, self.target, self.up))
+        # return np.array(glm.lookAt(self.position, self.target, self.up))
+        return np.array(glm.lookAt(glm.vec3(self.position), glm.vec3(self.target), glm.vec3(self.up)))
 
     def get_project_matrix(self):
         project_mat = glm.perspective(

@@ -17,7 +17,7 @@ class SimNode(AirbotPlayTaskBase):
         super().__init__(config)
         self.camera_0_pose = (self.mj_model.camera("eye_side").pos.copy(), self.mj_model.camera("eye_side").quat.copy())
 
-        self.camera_pose_random = 1
+        self.camera_pose_random = False
         self.yaw_range = np.pi/4. * np.array([-1, 1])
         # self.yaw_range[1] = 0.0
 
@@ -34,7 +34,7 @@ class SimNode(AirbotPlayTaskBase):
             camera.pos[0] = tpos[0] + dis * np.cos(yaw)
             camera.pos[1] = tpos[1] + dis * np.sin(yaw)
             camera.pos[2] = tpos[2] * np.random.uniform(0.95, 1.05)
-        print(camera.pos)
+            print(camera.pos)
 
     def check_success(self):
         tmat_jujube = get_body_tmat(self.mj_data, "block_green")
@@ -64,6 +64,7 @@ cfg.obs_rgb_cam_id = [0, 1]
 cfg.obs_depth_cam_id = [0, 1]
 cfg.obs_point_cloud_id = [0, 1]
 cfg.save_mjb_and_task_config = True
+save_depth = False
 
 if __name__ == "__main__":
     np.set_printoptions(precision=3, suppress=True, linewidth=500)
@@ -163,10 +164,11 @@ if __name__ == "__main__":
             obs_lst.append(obs)
             for cam_id, img in rgb_imgs.items():
                 encoders[cam_id].encode(img, obs["time"])
-            # for cam_id, depth in depth_imgs.items():
-            #     depth_path = Path(save_path) / f"depth/{cam_id}/{len(obs_lst) - 1}"
-            #     depth_path.parent.mkdir(parents=True, exist_ok=True)
-            #     np.save(depth_path, depth)
+            if save_depth:
+                for cam_id, depth in depth_imgs.items():
+                    depth_path = Path(save_path) / f"depth/{cam_id}/{len(obs_lst) - 1}"
+                    depth_path.parent.mkdir(parents=True, exist_ok=True)
+                    np.save(depth_path, depth)
             for cam_id, pc in point_cloud.items():
                 pc_path = Path(save_path) / f"point_cloud/{cam_id}/{len(obs_lst) - 1}"
                 pc_path.parent.mkdir(parents=True, exist_ok=True)

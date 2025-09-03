@@ -13,7 +13,7 @@
   <worldbody>
     <light directional='true' diffuse="0.2 0.2 0.2" pos='0.5 1. 2.5'/>
     <light directional='true' diffuse="0.2 0.2 0.2" pos='0 1. 2.5'/>
-    <geom name="ground" type="plane" pos="0 0 0" size="3 3 0.1" material="grid" solimp=".9 .95 .001" solref='-10000 -1000'/>
+    <geom group="3" name="ground" type="plane" pos="0 0 0" size="3 3 0.1" material="grid" solimp=".9 .95 .001" solref='-10000 -1000'/>
   </worldbody>
 
 </mujocoinclude>

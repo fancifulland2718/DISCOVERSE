@@ -2,7 +2,7 @@
   <!-- ======= AITBOT PLAY ======= -->
   <body name="arm_base">
     <site name="armbasepoint" pos='0 0 0' euler="0 0 0" size='0.001' type='sphere'/>
-    <geom type="box" pos="-0.02 0 0.005" size="0.0806 0.1375 0.0025" rgba="0.2 0.2 0.2 1"/>
+    <geom group="3" type="box" pos="-0.02 0 0.005" size="0.0806 0.1375 0.0025" rgba="0.2 0.2 0.2 1"/>
     <geom mesh="arm_base_0" pos="0 0 -0.0015" material="Gree_Light_Base" class="obj_visual"/>
     <geom mesh="arm_base_1" material="Paint_Matte_Black" class="obj_visual"/>
     <body name="link1" pos="0 0 0.1172">

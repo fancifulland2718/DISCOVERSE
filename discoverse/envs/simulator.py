@@ -373,7 +373,7 @@ class SimulatorBase:
             img = self.getDepthImg(id)
             self.img_depth_obs_s[id] = img
         for id in self.config.obs_point_cloud_id:
-            pc = self.getPointCloud(id)
+            pc = self.getPointCloud(id, 1)
             self.img_point_cloud_obs_s[id] = pc
         self.renderer._depth_rendering = depth_rendering
         
@@ -477,7 +477,7 @@ class SimulatorBase:
             depth_img = self.renderer.render()
             return depth_img
 
-    def getPointCloud(self, cam_id, N_gap=5):
+    def getPointCloud(self, cam_id, N_gap=5, max_depth=5.0):
         """ please call after get_observation """
 
         assert (cam_id in self.config.obs_rgb_cam_id) and (cam_id in self.config.obs_depth_cam_id), "Invalid cam_id"
@@ -501,7 +501,7 @@ class SimulatorBase:
         v_flat = v.ravel()
         depth_flat = depth.ravel()
 
-        valid = depth_flat > 0
+        valid = (depth_flat > 0) & (depth_flat < max_depth)
         u_valid = u_flat[valid]
         v_valid = v_flat[valid]
         Z_valid = depth_flat[valid]

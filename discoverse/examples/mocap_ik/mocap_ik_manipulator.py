@@ -13,6 +13,7 @@ from discoverse.envs import make_env
 from discoverse.examples.mocap_ik.mocap_ik_utils import \
     add_mocup_body_to_mjcf, \
     generate_mocap_xml
+from discoverse.examples.force_control.impedance_control import ImpedanceController
 from discoverse.utils import get_body_tmat
 
 from discoverse import DISCOVERSE_ASSETS_DIR
@@ -56,7 +57,7 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="输入机器人模型名称",
-        choices=["airbot_play", "arx_l5", "arx_x5", "iiwa14", "panda", "piper", "rm65", "ur5e", "xarm7"],
+        choices=["airbot_play", "airbot_play_force", "arx_l5", "arx_x5", "iiwa14", "panda", "piper", "rm65", "ur5e", "xarm7"],
     )
     parser.add_argument(
         "-t",
@@ -138,6 +139,8 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"Unsupported robot: {robot_name}")
 
+    impedance_control = ("force" in mjcf_path)
+
     # 加载机器人模型的MJCF文件
     if not os.path.exists(mjcf_path):
         paths = [
@@ -168,6 +171,13 @@ if __name__ == "__main__":
         # 将mocap刚体添加到模型中
         mj_model = add_mocup_body_to_mjcf(mjcf_path, [mocap_body_element])
     mj_data = mujoco.MjData(mj_model)
+
+    if impedance_control:
+        mjcf_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "manipulator", f"robot_{robot_name}.xml")
+        mj_model_idc = mujoco.MjModel.from_xml_path(mjcf_path)
+        kp = [50, 50, 50, 5, 5, 5]
+        kd = [5, 5, 5, 0.5, 0.5, 0.1]
+        ID_controller = ImpedanceController(mj_model_idc, kp, kd)
 
     # Create a Mink configuration
     configuration = mink.Configuration(mj_model)
@@ -230,7 +240,11 @@ if __name__ == "__main__":
                     ORI_THRESHOLD,
                     MAX_ITERS,
                 )
-                mj_data.ctrl[:arm_dof] = configuration.q[:arm_dof]
+                if impedance_control:
+                    q_desired = configuration.q[:arm_dof]
+                    ID_controller.set_target(q_desired)
+                else:
+                    mj_data.ctrl[:arm_dof] = configuration.q[:arm_dof]
 
                 if res:
                     # 设置目标框为绿色（表示IK计算成功）
@@ -241,7 +255,10 @@ if __name__ == "__main__":
 
                 # 执行渲染间隔次数的物理仿真步骤
                 for _ in range(render_gap):
-                    # 执行物理仿真步骤
+                    if impedance_control:
+                        ID_controller.update_state(mj_data.qpos[:arm_dof], mj_data.qvel[:arm_dof])
+                        torque = ID_controller.compute_torque()
+                        mj_data.ctrl[:arm_dof] = torque                    # 执行物理仿真步骤
                     mujoco.mj_step(mj_model, mj_data)
                 last_mj_time = mj_data.time
 
@@ -258,7 +275,7 @@ if __name__ == "__main__":
                     print(">>> target_body: ")
                     print(T_wt.as_matrix())
                     print(">>> object2target")
-                    print(tmat_body.inv() @ T_wt.as_matrix())
+                    print(np.linalg.inv(tmat_body) @ T_wt.as_matrix())
                     last_select = viewer.perturb.select
 
                 # 计算下一步开始前需要等待的时间，保证帧率稳定

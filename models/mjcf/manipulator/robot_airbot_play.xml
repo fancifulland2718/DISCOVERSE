@@ -13,10 +13,6 @@
     </body>
   </worldbody>
 
-  <equality>
-    <joint joint1='endleft' joint2='endright' polycoef='0 -1 0 0 0 '/>
-  </equality>
-
   <actuator>
     <include file="airbot_play/airbot_play_control.xml"/>
   </actuator>

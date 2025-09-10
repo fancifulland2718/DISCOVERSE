@@ -1,0 +1,23 @@
+<mujoco model="airbot_play_g2_force">
+  <compiler angle="radian" meshdir="../../meshes/" texturedir="../../meshes/" autolimits="true"/>
+  <option integrator="implicitfast" />
+
+  <include file="../scene/skybox.xml"/>
+  <include file="airbot_play_force/airbot_play_force_dependencies.xml"/>
+  <include file="airbot_play_force/airbot_play_force_appendix.xml"/>
+
+  <worldbody>
+    <body name="airbot_play_force_pose" pos="0 0 0.78" euler="0 0 0">
+      <include file="airbot_play_force/airbot_play_force.xml"/>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <include file="airbot_play_force/airbot_play_force_control.xml"/>
+  </actuator>
+
+  <keyframe>
+    <key name="home" qpos='0 -1 1.2 1.5708 -1.2 -1.5708 0 0' ctrl='0 -1 1.2 1.5708 -1.2 -1.5708'/>
+  </keyframe>
+
+</mujoco>

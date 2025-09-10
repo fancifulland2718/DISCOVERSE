@@ -427,7 +427,6 @@ def main(robot_name="airbot_play", task_name="place_block", sync=False, once=Fal
     """
     print(f"Welcome to discoverse {discoverse.__version__} !")
     print(discoverse.__logo__)
-  
 
     xml_path = generate_robot_task_model(robot_name, task_name)
     mj_model = mujoco.MjModel.from_xml_path(xml_path)

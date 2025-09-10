@@ -13,8 +13,7 @@
   <worldbody>
     <camera name="high" pos="0.851 -1.066 1.602" xyaxes="0.915 0.404 0.000 -0.126 0.285 0.950"/>
     <camera name="low" pos="0.524 -0.747 1.248" xyaxes="0.921 0.389 -0.000 -0.114 0.269 0.956"/>
-    <light pos="0 0.2 2." dir="0 0 -1"/>
-    <light pos="0.2 0 2." dir="0 0 -1"/>
+    <light pos="1 0 2." dir="-0.5 0 -0.8"/>
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
     <body name="skybox_table" pos="0.4 0 0" euler="0 0 1.5708">
       <geom size="0.3 0.6 0.01" pos="0 0 0.77" type="box" rgba="0.8 0.8 0.8 1" condim="4" solimp="2 1 0.01" solref="0.01 1" friction="1 0.005 0.0001"/>

@@ -14,14 +14,14 @@ from discoverse.examples.mocap_ik.mocap_ik_utils import \
     add_mocup_body_to_mjcf, \
     generate_mocap_xml
 from discoverse.examples.force_control.impedance_control import ImpedanceController
-from discoverse.utils import get_body_tmat
+from discoverse.utils import get_mocap_tmat, get_site_tmat, get_body_tmat
 
 from discoverse import DISCOVERSE_ASSETS_DIR
 
 SOLVER = "quadprog"
-POS_THRESHOLD = 1e-4
-ORI_THRESHOLD = 1e-4
-MAX_ITERS = 50
+POS_THRESHOLD = 1e-3
+ORI_THRESHOLD = 1e-3
+MAX_ITERS = 10
 def converge_ik(configuration, tasks, dt, solver, pos_threshold, ori_threshold, max_iters):
     for _ in range(max_iters):
         vel = mink.solve_ik(configuration, tasks, dt, solver, 1e-3)
@@ -65,7 +65,7 @@ if __name__ == "__main__":
         type=str,
         default=None,
         help="输入目标名称",
-        choices=["block_bridge_place", "close_laptop", "cover_cup", "open_drawer", "pick_jujube", "place_block", "place_coffeecup", "place_jujube", "place_jujube_coffeecup", "place_kiwi_fruit", "push_mouse", "stack_block"],
+        choices=["block_bridge_place", "close_laptop", "cover_cup", "open_drawer", "peg_in_hole", "pick_jujube", "place_block", "place_coffeecup", "place_jujube", "place_jujube_coffeecup", "place_kiwi_fruit", "push_mouse", "stack_block"],
     )
     parser.add_argument(
         "-m",
@@ -77,8 +77,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "-y",
         action="store_true",
-        help="输入MJCF文件的路径（可选）。如未指定，则使用默认的robot_airbot_play.xml"
+        help="在macOS上跳过mjpython提示，直接尝试启动查看器",
     )
+    parser.add_argument(
+        "--mouse-3d",
+        action="store_true",
+        help="启用3D鼠标进行机械臂控制（需要3D鼠标硬件支持）"
+    )
+    parser.add_argument(
+        "--hide-mocap",
+        action="store_true",
+        help="隐藏运动捕捉目标"
+    )
+
     args = parser.parse_args()
 
     # 检查是否在macOS上运行并给出适当的提示
@@ -104,6 +115,14 @@ if __name__ == "__main__":
     print("================================================================\n")
     # 设置numpy输出格式
     np.set_printoptions(precision=5, suppress=True, linewidth=500)
+
+    if args.mouse_3d:
+        import pyspacemouse 
+        # success = pyspacemouse.open(dof_callback=pyspacemouse.print_state, button_callback=pyspacemouse.print_buttons)
+        success = pyspacemouse.open()
+        if not success:
+            print("3D鼠标打开失败，请检查设备连接")
+            sys.exit(1)
 
     robot_name = args.robot
     task_name = args.task
@@ -171,6 +190,7 @@ if __name__ == "__main__":
         # 将mocap刚体添加到模型中
         mj_model = add_mocup_body_to_mjcf(mjcf_path, [mocap_body_element])
     mj_data = mujoco.MjData(mj_model)
+    mocap_id = mj_model.body("target").mocapid
 
     if impedance_control:
         mjcf_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "manipulator", f"robot_{robot_name}.xml")
@@ -203,9 +223,8 @@ if __name__ == "__main__":
             show_right_ui=False,
             key_callback=key_press_callback
         ) as viewer:
-
             # 设置渲染帧率
-            render_fps = 50
+            render_fps = 125.0
             # 计算渲染间隔，确保按照指定帧率渲染
             render_gap = int(1.0 / render_fps / mj_model.opt.timestep)
 
@@ -217,6 +236,8 @@ if __name__ == "__main__":
 
             # Move the mocap target to the end-effector's current pose
             mink.move_mocap_to_frame(mj_model, mj_data, mocap_name, "endpoint", "site")
+            if not args.hide_mocap:
+                viewer.opt.geomgroup[5] = 1  # 显示group 5中的几何体
 
             last_select = viewer.perturb.select
             last_mj_time = mj_data.time
@@ -226,8 +247,34 @@ if __name__ == "__main__":
 
                 if last_mj_time > mj_data.time:
                     # after reset signal
+                    mujoco.mj_resetDataKeyframe(mj_model, mj_data, mj_model.key(0).id)
+                    mujoco.mj_forward(mj_model, mj_data)
                     mink.move_mocap_to_frame(mj_model, mj_data, mocap_name, "endpoint", "site")
                     configuration.update(mj_data.qpos)
+
+                ###################################################################################
+                tmat_endpoint = get_site_tmat(mj_data, "endpoint")
+                tmat_hole = get_body_tmat(mj_data, "hole")
+                dist_xy = np.linalg.norm(tmat_endpoint[:2,3] - tmat_hole[:2,3])
+                dist_z = tmat_endpoint[2,3] - tmat_hole[2,3]
+                if dist_xy < 0.005 and dist_z < 0.002 and np.abs(tmat_endpoint[0,2]) > 0.995:
+                    # 目标到达孔的位置
+                    mj_model.geom("peg_box").rgba = (0, 1, 0, 1)
+                else:
+                    mj_model.geom("peg_box").rgba = (1, 0, 0, 1)
+
+                ###################################################################################
+
+                if args.mouse_3d:
+                    state = pyspacemouse.read()
+                    delta_position = np.array([state.y, -state.x, state.z])
+                    delta_position *= (np.abs(delta_position) > 0.01)
+                    delta_position = np.pow(delta_position, 2) * np.sign(delta_position)
+                    delta_euler = np.array([-state.roll, -state.pitch, state.yaw])
+
+                    # tmat_mocap = get_mocap_tmat(mj_data, mocap_id)
+                    rmat_base = get_site_tmat(mj_data, "armbase")[:3,:3]
+                    mj_data.mocap_pos[mocap_id] += (rmat_base @ delta_position) * 0.3 / render_fps
 
                 T_wt = mink.SE3.from_mocap_name(mj_model, mj_data, "target")
                 end_effector_task.set_target(T_wt)

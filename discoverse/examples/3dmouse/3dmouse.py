@@ -9,10 +9,9 @@ from discoverse import DISCOVERSE_ASSETS_DIR
 from discoverse.robots import AirbotPlayIK
 from discoverse.robots_env.airbot_play_base import AirbotPlayBase, AirbotPlayCfg
 
-import pyspacemouse #refer the configuration at https://pypi.org/project/pyspacemouse/
+# refer the configuration at https://pypi.org/project/pyspacemouse/
+import pyspacemouse 
 import time
-
-# from discoverse.scripts.wbc.ik_hoqp import print_once
 
 def step_func(current, target, step):
     if current < target - step:
@@ -34,7 +33,7 @@ if __name__ == "__main__":
         "height" : 720,
     }
 
-    cfg.mjcf_file_path = "mjcf/airbot_play_floor.xml"
+    cfg.mjcf_file_path = "mjcf/manipulator/robot_airbot_play.xml"
     cfg.use_gaussian_renderer = False
     exec_node = AirbotPlayBase(cfg)
 

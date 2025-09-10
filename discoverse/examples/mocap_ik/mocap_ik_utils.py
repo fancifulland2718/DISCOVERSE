@@ -172,6 +172,7 @@ def generate_mocap_xml(name, box_size=(0.05, 0.05, 0.05), arrow_length=0.05, rgb
     site.set('name', f'{name}_site')
     site.set('size', '0.001')
     site.set('type', 'sphere')
+    site.set('group', '5')
     
     # 创建box几何体
     box_geom = ET.SubElement(body, 'geom')
@@ -182,6 +183,7 @@ def generate_mocap_xml(name, box_size=(0.05, 0.05, 0.05), arrow_length=0.05, rgb
     box_geom.set('contype', '0')
     box_geom.set('conaffinity', '0')
     box_geom.set('rgba', f'{rgba[0]} {rgba[1]} {rgba[2]} {rgba[3]}')
+    box_geom.set('group', '5')
     
     # 创建X轴箭头（红色）
     x_arrow = ET.SubElement(body, 'geom')
@@ -193,6 +195,7 @@ def generate_mocap_xml(name, box_size=(0.05, 0.05, 0.05), arrow_length=0.05, rgb
     x_arrow.set('contype', '0')
     x_arrow.set('conaffinity', '0')
     x_arrow.set('rgba', '1 0 0 .2')
+    x_arrow.set('group', '5')
     
     # 创建Y轴箭头（绿色）
     y_arrow = ET.SubElement(body, 'geom')
@@ -204,6 +207,7 @@ def generate_mocap_xml(name, box_size=(0.05, 0.05, 0.05), arrow_length=0.05, rgb
     y_arrow.set('contype', '0')
     y_arrow.set('conaffinity', '0')
     y_arrow.set('rgba', '0 1 0 .2')
+    y_arrow.set('group', '5')
     
     # 创建Z轴箭头（蓝色）
     z_arrow = ET.SubElement(body, 'geom')
@@ -215,7 +219,8 @@ def generate_mocap_xml(name, box_size=(0.05, 0.05, 0.05), arrow_length=0.05, rgb
     z_arrow.set('contype', '0')
     z_arrow.set('conaffinity', '0')
     z_arrow.set('rgba', '0 0 1 .2')
-    
+    z_arrow.set('group', '5')
+
     return body
 
 def generate_mocap_sensor_xml(mocap_name, ref_name, ref_type="body"):

@@ -10,6 +10,12 @@ from PIL import Image
 from scipy.spatial.transform import Rotation
 from discoverse import DISCOVERSE_ASSETS_DIR
 
+def get_mocap_tmat(mj_data, mocap_id):
+    tmat = np.eye(4)
+    tmat[:3,:3] = Rotation.from_quat(mj_data.mocap_quat[mocap_id][[1,2,3,0]]).as_matrix()
+    tmat[:3,3] = mj_data.mocap_pos[mocap_id]
+    return tmat
+
 def get_site_tmat(mj_data, site_name):
     tmat = np.eye(4)
     tmat[:3,:3] = mj_data.site(site_name).xmat.reshape((3,3))

@@ -1,4 +1,5 @@
 <mujocoinclude>
+  <option integrator="implicitfast" timestep="0.004"/>
 
   <asset>
     <mesh name="base_link" file="airbot_play_force/base_link.STL"/>

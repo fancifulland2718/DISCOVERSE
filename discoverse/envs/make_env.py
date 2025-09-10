@@ -226,13 +226,17 @@ def _merge_robot_and_pure_task(robot_xml_path: str, pure_task_xml_path: str) -> 
     arm_name = robot_root.get("model")
     manipulator_locate = task_root.find(".//site[@name='manipulator_locate']")
     robot_worldbody = robot_root.find("worldbody")
+    set_arm_pose = False
     if robot_worldbody is not None:
         for child in robot_worldbody:
+            print(child.tag, child.get("name"))
             if child.tag == "body" and child.get("name") == f"{arm_name}_pose":
+                set_arm_pose = True
                 for key in ["pos", "euler", "quat"]:
                     if manipulator_locate is not None and manipulator_locate.get(key):
                         child.set(key, manipulator_locate.get(key))
             new_worldbody.append(child)
+    assert set_arm_pose, "未找到机械臂位姿设置节点，请确保机械臂XML中包含正确的body名称"
     
     # 然后添加任务环境的worldbody内容（包括include元素）
     task_worldbody = task_root.find("worldbody")

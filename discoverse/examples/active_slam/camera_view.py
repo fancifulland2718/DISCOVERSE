@@ -499,8 +499,7 @@ if __name__ == "__main__":
     # 创建并配置相机环境
     with open(xml_save_path, "w") as f:
         f.write(camera_env_xml)
-    print(xml_save_path)
-    exit(0)
+
     robot = CamEnv(cfg)
     robot.options.label = mujoco.mjtLabel.mjLABEL_CAMERA.value
     robot.options.frame = mujoco.mjtFrame.mjFRAME_SITE.value

@@ -9,28 +9,28 @@
         <geom group="3" condim="6" solimp="2 1 0.01" solref="0.001 10" friction="1 0.005 0.0001" type="mesh"/>
       </default>
       <default class='joint1'>
-        <joint axis='0 0 1' range="-3.14 2.09" actuatorfrcrange="-24 24" damping="0.2" frictionloss='15' />
-        <position ctrlrange="-3.14 2.09"/>
+        <joint axis='0 0 1' range="-3.151 2.089" actuatorfrcrange="-24 24" damping="0.2" frictionloss='15' />
+        <position ctrlrange="-3.151 2.089"/>
       </default>
       <default class='joint2'>
-        <joint axis='0 0 1' range="-2.96 0.17" actuatorfrcrange="-24 24" damping="0.2" frictionloss='15' />
-        <position ctrlrange="-2.96 0.17" />
+        <joint axis='0 0 1' range="-2.963 0.181" actuatorfrcrange="-24 24" damping="0.2" frictionloss='15' />
+        <position ctrlrange="-2.963 0.181" />
       </default>
       <default class='joint3'>
-        <joint axis='0 0 1' range='-0.087 3.14' actuatorfrcrange="-24 24" damping="0.2" frictionloss='15' />
-        <position ctrlrange='-0.087 3.14'/>
+        <joint axis='0 0 1' range='-0.094 3.161' actuatorfrcrange="-24 24" damping="0.2" frictionloss='15' />
+        <position ctrlrange='-0.094 3.161'/>
       </default>
       <default class='joint4'>
-        <joint axis='0 0 1' range="-2.96 2.96" actuatorfrcrange="-8 8" damping="0.1" frictionloss='5' />
-        <position ctrlrange="-2.96 2.96"/>
+        <joint axis='0 0 1' range="-3.012 3.012" actuatorfrcrange="-8 8" damping="0.1" frictionloss='5' />
+        <position ctrlrange="-3.012 3.012"/>
       </default>
       <default class='joint5'>
-        <joint axis='0 0 1' range="-1.74 1.74" actuatorfrcrange="-8 8" damping="0.1" frictionloss='5' />
-        <position ctrlrange="-1.74 1.74"/>
+        <joint axis='0 0 1' range="-1.859 1.859" actuatorfrcrange="-8 8" damping="0.1" frictionloss='5' />
+        <position ctrlrange="-1.859 1.859"/>
       </default>
       <default class='joint6'>
-        <joint axis='0 0 1' range="-3.14 3.14" actuatorfrcrange="-8 8" damping="0.1" frictionloss='5' />
-        <position ctrlrange="-3.14 3.14"/>
+        <joint axis='0 0 1' range="-3.017 3.017" actuatorfrcrange="-8 8" damping="0.1" frictionloss='5' />
+        <position ctrlrange="-3.017 3.017"/>
       </default>
       <default class='finger1'>
         <joint axis='0 1 0' range="-0.04 0" type='slide' damping="2"/>

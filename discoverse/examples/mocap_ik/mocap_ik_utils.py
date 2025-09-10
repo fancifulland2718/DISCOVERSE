@@ -140,15 +140,15 @@ def move_mocap_to_frame(
     data.mocap_pos[mocap_id] = xpos.copy()
     mujoco.mju_mat2Quat(data.mocap_quat[mocap_id], xmat)
 
-def generate_mocap_xml(name, box_size=(0.05, 0.05, 0.05), arrow_length=0.05, rgba=(0.3, 0.6, 0.3, 0.2)):
+def generate_mocap_xml(name, box_size=(0.01, 0.01, 0.01), arrow_length=0.025, rgba=(0.3, 0.6, 0.3, 0.2)):
     """生成mocap刚体的XML元素。
     
     创建一个包含盒子和三个箭头（表示XYZ轴）的mocap刚体。
     
     Args:
         name: mocap刚体的名称
-        box_size: 盒子的大小，默认为(0.05, 0.05, 0.05)
-        arrow_length: 箭头的长度，默认为0.05
+        box_size: 盒子的大小，默认为(0.025, 0.025, 0.025)
+        arrow_length: 箭头的长度，默认为0.025
         rgba: 盒子的颜色和透明度，默认为(0.3, 0.6, 0.3, 0.2)
         
     Returns:
@@ -190,7 +190,7 @@ def generate_mocap_xml(name, box_size=(0.05, 0.05, 0.05), arrow_length=0.05, rgb
     x_arrow.set('type', 'cylinder')
     x_arrow.set('pos', f'{arrow_length} 0 0')
     x_arrow.set('euler', '0 1.5708 0')
-    x_arrow.set('size', f'.01 {arrow_length}')
+    x_arrow.set('size', f'{arrow_length/10.} {arrow_length}')
     x_arrow.set('density', '0')
     x_arrow.set('contype', '0')
     x_arrow.set('conaffinity', '0')
@@ -202,7 +202,7 @@ def generate_mocap_xml(name, box_size=(0.05, 0.05, 0.05), arrow_length=0.05, rgb
     y_arrow.set('type', 'cylinder')
     y_arrow.set('pos', f'0 {arrow_length} 0')
     y_arrow.set('euler', '1.5708 0 0')
-    y_arrow.set('size', f'.01 {arrow_length}')
+    y_arrow.set('size', f'{arrow_length/10.} {arrow_length}')
     y_arrow.set('density', '0')
     y_arrow.set('contype', '0')
     y_arrow.set('conaffinity', '0')
@@ -214,7 +214,7 @@ def generate_mocap_xml(name, box_size=(0.05, 0.05, 0.05), arrow_length=0.05, rgb
     z_arrow.set('type', 'cylinder')
     z_arrow.set('pos', f'0 0 {arrow_length}')
     z_arrow.set('euler', '0 0 0')
-    z_arrow.set('size', f'.01 {arrow_length}')
+    z_arrow.set('size', f'{arrow_length/10.} {arrow_length}')
     z_arrow.set('density', '0')
     z_arrow.set('contype', '0')
     z_arrow.set('conaffinity', '0')

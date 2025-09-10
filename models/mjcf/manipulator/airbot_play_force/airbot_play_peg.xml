@@ -23,6 +23,9 @@
               <joint name="joint5" pos="0 0 0" axis="0 0 1" range="-1.7628 1.7628"/>
               <geom type="mesh" rgba="0.75294 0.75294 0.75294 1" mesh="link5"/>
               <body name="link6" quat="0.707105 -0.707108 0 0">
+                <body pos="0 -0.075 0.1" euler="3.1416 0 0">
+                  <camera name="eye_arm" euler="-0.6 0 0" fovy="72.5376526571421"/>
+                </body>
                 <inertial pos="-1.12859e-05 -0.00288488 0.120334" quat="0.690668 -0.0374648 0.0402513 0.721078" mass="0.617009" diaginertia="0.00266817 0.00259226 0.000587714"/>
                 <joint name="joint6" pos="0 0 0" axis="0 0 1" range="-3.0107 3.0107"/>
                 <geom type="mesh" rgba="1 1 1 1" mesh="link6"/>

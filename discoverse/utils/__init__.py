@@ -5,6 +5,7 @@ from .camera_spline_interpolation import interpolate_camera_poses
 
 import os
 import random
+import mujoco
 import numpy as np
 from PIL import Image
 from scipy.spatial.transform import Rotation
@@ -27,6 +28,36 @@ def get_body_tmat(mj_data, body_name):
     tmat[:3,:3] = Rotation.from_quat(mj_data.body(body_name).xquat[[1,2,3,0]]).as_matrix()
     tmat[:3,3] = mj_data.body(body_name).xpos
     return tmat
+
+def get_control_idx(mj_model, control_names):
+    control_idx = {
+        ctr_name : mujoco.mj_name2id(
+            mj_model, 
+            mujoco.mjtObj.mjOBJ_ACTUATOR, 
+            ctr_name
+        ) 
+        for ctr_name in control_names
+    }
+    for k in control_idx:
+        assert control_idx[k] >= 0, f"Control name not found in model: {k}"
+    return control_idx
+
+def get_sensor_idx(mj_model, sensor_names):
+    sensor_id_cumsum = np.cumsum(mj_model.sensor_dim) - mj_model.sensor_dim
+    sensor_idx = {
+        sn : mujoco.mj_name2id(
+            mj_model, 
+            mujoco.mjtObj.mjOBJ_SENSOR, 
+            sn
+        ) 
+        for sn in sensor_names
+    }
+    for k in sensor_idx:
+        assert sensor_idx[k] >= 0, f"Sensor name not found in model: {k}"
+    sensor_data_id = {}
+    for k, v in sensor_idx.items():
+        sensor_data_id[k] = sensor_id_cumsum[v].item()
+    return sensor_data_id
 
 def step_func(current, target, step):
     if current < target - step:
@@ -65,8 +96,11 @@ __all__ = [
     "BaseConfig",
     "SimpleStateMachine",
     "interpolate_camera_poses",
+    "get_mocap_tmat",
     "get_site_tmat",
     "get_body_tmat",
+    "get_control_idx",
+    "get_sensor_idx",
     "step_func",
     "camera2k",
     "get_random_texture"

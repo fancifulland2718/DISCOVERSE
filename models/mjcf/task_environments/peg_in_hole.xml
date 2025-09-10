@@ -5,6 +5,7 @@
     <scale forcewidth="0.01"/>
   </visual>
   <worldbody>
+    <camera name="eye_side" pos="0.646 -0.342 1.126" xyaxes="0.716 0.698 0.000 -0.290 0.298 0.910"/>
     <site name="manipulator_locate" pos="0 0 0.78" euler="0 0 0"/>
     <body name="hole" pos="0.3 0 .79">
       <replicate count="4" euler="0 0 1.5708">

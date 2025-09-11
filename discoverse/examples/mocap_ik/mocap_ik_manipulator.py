@@ -34,13 +34,23 @@ class Manipulator:
     MINK_ORI_THRESHOLD = 1e-3
     MINK_MAX_ITERS = 10
 
+    #################################################
+    # inference interface
+    target_position = np.zeros(3)
+    target_quat_wxyz = np.zeros(4)
+
+    #################################################
     def __init__(self, args):
         self.robot_name = args.robot
         self.task_name = args.task
+        self.inference_mode = args.inference
+        self.inference_hz = args.infer_hz
+        if self.inference_mode:
+            args.mouse_3d = False
 
         self.mjcf_path = self._prepare_mjcf(args)
         self.arm_dof = self._prepare_dof(self.mjcf_path)
-        self.mj_model, self.mj_data = self._prepare_mocap(self.mjcf_path)
+        self.mj_model, self.mj_data = self._prepare_m_d(self.mjcf_path, not self.inference_mode)
         self._prepare_viewer(args)
         if args.mouse_3d:
             self._prepare_3dmouse()
@@ -59,20 +69,21 @@ class Manipulator:
 
     def run(self):
         self.last_select = self.viewer.perturb.select
-        last_mj_time = self.mj_data.time
         try:
             while self.viewer.is_running():
                 step_start = time.time()
                 if self.enable_record and self.task_success:
                     self.total_record_cnt += 1
                     self.recoder_state_file(self.save_dir, self.obs_lst)
-                    self.mj_data.time = -1
-
-                if last_mj_time > self.mj_data.time:
+                    self.reset_sig = True
+                
+                if self.reset_sig:
                     self.reset()
+                
+                if self.inference_mode:
+                    self._upate_policy()
 
                 self.step()
-                last_mj_time = self.mj_data.time
 
                 if self.enable_record and len(self.obs_lst) <= self.mj_data.time * self.record_frequency:
                     self.record_once()
@@ -95,17 +106,26 @@ class Manipulator:
         # 执行渲染间隔次数的物理仿真步骤
         for _ in range(self.render_gap):
             if self.impedance_control: 
+                self.ID_controller.update_state(
+                    self.mj_data.sensordata[self.joint_q_sensor_idx], 
+                    self.mj_data.sensordata[self.joint_dq_sensor_idx], 
+                    self.mj_data.sensordata[self.joint_tau_sensor_idx]
+                )
+                # ee_force = self.ID_controller.get_ext_force()
                 torque = self.ID_controller.compute_torque()
-                self.mj_data.ctrl[:self.arm_dof] = torque
-                self.ID_controller.update_state(self.mj_data.qpos[:self.arm_dof], self.mj_data.qvel[:self.arm_dof], torque)
-                ee_force = self.ID_controller.get_ext_force()
+                self.mj_data.ctrl[:self.arm_dof] = torque[:]
             # 执行物理仿真步骤
             mujoco.mj_step(self.mj_model, self.mj_data)
-
+        
+        t1 = self.mj_data.time
         self.viewer.sync()
+        t2 = self.mj_data.time
+        if t1 > t2:
+            self.reset_sig = True
         self.post_step()
 
     def reset(self):
+        self.reset_sig = False
         mujoco.mj_resetDataKeyframe(self.mj_model, self.mj_data, self.mj_model.key(0).id)
         mujoco.mj_forward(self.mj_model, self.mj_data)
         self._reset_mink()
@@ -133,12 +153,15 @@ class Manipulator:
         self.obs_lst.append(obs)
 
     def get_observation(self):
-        tmat_target = get_mocap_tmat(self.mj_data, self.mocap_id)
+        if hasattr(self, "obs") and np.abs(self.obs["time"] - self.mj_data.time) < 1e-6:
+            return self.obs
+
+        tmat_target = self.mink_target_se3.as_matrix()
         tmat_arm_base = get_site_tmat(self.mj_data, "armbase")
         tmat_target_local = np.linalg.inv(tmat_arm_base) @ tmat_target
         target_position = tmat_target_local[:3, 3]
         target_quat = Rotation.from_matrix(tmat_target_local[:3, :3]).as_quat()[[3,0,1,2]]
-        obs = {
+        self.obs = {
             "time": self.mj_data.time,
             "jq"  : self.mj_data.sensordata[self.joint_q_sensor_idx].tolist(),
             "jv"  : self.mj_data.sensordata[self.joint_dq_sensor_idx].tolist(),
@@ -154,8 +177,8 @@ class Manipulator:
         }
         for camera_name in self.camera_names:
             self.renderer.update_scene(self.mj_data, camera_name)
-            obs["img"][camera_name] = self.renderer.render()
-        return obs
+            self.obs["img"][camera_name] = self.renderer.render()
+        return self.obs
 
     def converge_ik(self, dt):
         for _ in range(self.MINK_MAX_ITERS):
@@ -232,24 +255,24 @@ class Manipulator:
             raise ValueError(f"Unsupported robot: {self.robot_name}")
         return arm_dof
 
-    def _prepare_mocap(self, mjcf_path):
+    def _prepare_m_d(self, mjcf_path, add_mocap):
         # 设置末端执行器目标（mocap）名称
-        self.mocap_name = "target"
-        self.mocap_box_name = self.mocap_name + "_box"
-
         mj_model = mujoco.MjModel.from_xml_path(mjcf_path)
-        try:
-            mid = mj_model.body(self.mocap_name).mocapid[0]
-            if mid == -1:
-                raise KeyError(f"Mocap body '{self.mocap_name}' not found")
-        except KeyError:
-            # 生成mocap刚体XML元素
-            mocap_body_element = generate_mocap_xml(self.mocap_name)
-            # 将mocap刚体添加到模型中
-            mj_model = add_mocup_body_to_mjcf(mjcf_path, [mocap_body_element])
-        mj_data = mujoco.MjData(mj_model)
-        self.mocap_id = mj_model.body(self.mocap_name).mocapid[0]
+        if add_mocap:
+            self.mocap_name = "target"
+            self.mocap_box_name = self.mocap_name + "_box"
+            try:
+                mid = mj_model.body(self.mocap_name).mocapid[0]
+                if mid == -1:
+                    raise KeyError(f"Mocap body '{self.mocap_name}' not found")
+            except KeyError:
+                # 生成mocap刚体XML元素
+                mocap_body_element = generate_mocap_xml(self.mocap_name)
+                # 将mocap刚体添加到模型中
+                mj_model = add_mocup_body_to_mjcf(mjcf_path, [mocap_body_element])
+            self.mocap_id = mj_model.body(self.mocap_name).mocapid[0]
 
+        mj_data = mujoco.MjData(mj_model)
         return mj_model, mj_data
 
     def _prepare_impedance_controller(self):
@@ -391,15 +414,23 @@ class Manipulator:
         self.mj_data.mocap_pos[self.mocap_id] += (rmat_base @ delta_position) * 0.2 / self.render_fps
     
     def _proc_mink_ik(self):
-        self.mink_target_se3 = mink.SE3.from_mocap_name(self.mj_model, self.mj_data, self.mocap_name)
+        if self.inference_mode:
+            self.mink_target_se3 = mink.SE3.from_rotation_and_translation(
+                rotation=mink.SO3(self.target_quat_wxyz),
+                translation=self.target_position
+            )
+        else:
+            self.mink_target_se3 = mink.SE3.from_mocap_name(self.mj_model, self.mj_data, self.mocap_name)
+
         self.end_effector_task.set_target(self.mink_target_se3)
         res = self.converge_ik(self.mj_model.opt.timestep)
-        if res:
-            # 设置目标框为绿色（表示IK计算成功）
-            self.mj_model.geom(self.mocap_box_name).rgba = (0.3, 0.6, 0.3, 0.2)
-        else:
-            # 设置目标框为红色（表示IK计算失败）
-            self.mj_model.geom(self.mocap_box_name).rgba = (0.6, 0.3, 0.3, 0.2)
+        if not self.inference_mode:
+            if res:
+                # 设置目标框为绿色（表示IK计算成功）
+                self.mj_model.geom(self.mocap_box_name).rgba = (0.3, 0.6, 0.3, 0.2)
+            else:
+                # 设置目标框为红色（表示IK计算失败）
+                self.mj_model.geom(self.mocap_box_name).rgba = (0.6, 0.3, 0.3, 0.2)
 
         if self.impedance_control:
             q_desired = self.configuration.q[:self.arm_dof]
@@ -464,16 +495,30 @@ class Manipulator:
                 save_dict["act"].append(obs['action'])
             json.dump(save_dict, fp)
 
-if __name__ == "__main__":
-    """
-    机械臂的仿真主程序
-    
-    该程序创建一个机械臂模型的MuJoCo仿真环境，添加运动捕捉(mocap)目标，
-    并使用逆运动学(IK)控制机器人的单臂跟踪目标位置和姿态。
-    """
-    print(f"Welcome to discoverse {discoverse.__version__} !")
-    print(discoverse.__logo__)
+    def _upate_policy(self):
+        if not hasattr(self, "last_infer_time"):
+            self.last_infer_time = self.mj_data.time
+            to_update_policy = True
+        elif self.mj_data.time - self.last_infer_time >= 1./self.inference_hz:
+            to_update_policy = True
+        else:
+            to_update_policy = False
+        if to_update_policy:
+            self.policy_function()
 
+    def policy_function(self):
+        """
+        :TO: GHZ
+        obs = self.get_observation()
+        action = your_policy_network(obs)
+        tart_position = xxxx
+        tart_orientation = xxx
+        self.target_position = tart_position
+        self.target_quat_wxyz = tart_orientation
+        """
+        raise NotImplementedError
+
+def parse_args():
     parser = argparse.ArgumentParser(
         description="Airbot Play 机器人MuJoCo仿真主程序\n"
                     "用法示例：\n"
@@ -536,8 +581,24 @@ if __name__ == "__main__":
         action='store_true',
         help='启用推理模式'
     )
+    parser.add_argument(
+        '--infer-hz',
+        type=float, default=25,
+        help="推理频率"
+    )
 
-    args = parser.parse_args()
+    return parser.parse_args()
+
+if __name__ == "__main__":
+    """
+    机械臂的仿真主程序
+    
+    该程序创建一个机械臂模型的MuJoCo仿真环境，添加运动捕捉(mocap)目标，
+    并使用逆运动学(IK)控制机器人的单臂跟踪目标位置和姿态。
+    """
+    print(f"Welcome to discoverse {discoverse.__version__} !")
+    print(discoverse.__logo__)
+    args = parse_args()
 
     # 检查是否在macOS上运行并给出适当的提示
     if platform.system() == "Darwin" and not args.y:

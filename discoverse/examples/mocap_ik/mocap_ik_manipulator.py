@@ -50,7 +50,7 @@ class Manipulator:
 
         self.mjcf_path = self._prepare_mjcf(args)
         self.arm_dof = self._prepare_dof(self.mjcf_path)
-        self.mj_model, self.mj_data = self._prepare_m_d(self.mjcf_path, not self.inference_mode)
+        self.mj_model, self.mj_data = self._prepare_m_d(self.mjcf_path)
         self._prepare_viewer(args)
         if args.mouse_3d:
             self._prepare_3dmouse()
@@ -142,12 +142,13 @@ class Manipulator:
                     ec.close()
                 except Exception:
                     pass
-            for k in self.camera_encoders.keys():
+            for k in tuple(self.camera_encoders.keys()):
                 del self.camera_encoders[k]
 
     def record_once(self):
         obs = self.get_observation()
-        imgs = obs.pop('img')
+        # imgs = obs.pop('img')
+        imgs = obs['img']
         for cam_id, img in imgs.items():
             self.camera_encoders[cam_id].encode(img, obs["time"])
         self.obs_lst.append(obs)
@@ -156,7 +157,7 @@ class Manipulator:
         if hasattr(self, "obs") and np.abs(self.obs["time"] - self.mj_data.time) < 1e-6:
             return self.obs
 
-        tmat_target = self.mink_target_se3.as_matrix()
+        tmat_target = get_mocap_tmat(self.mj_data, self.mocap_id)
         tmat_arm_base = get_site_tmat(self.mj_data, "armbase")
         tmat_target_local = np.linalg.inv(tmat_arm_base) @ tmat_target
         target_position = tmat_target_local[:3, 3]
@@ -255,22 +256,21 @@ class Manipulator:
             raise ValueError(f"Unsupported robot: {self.robot_name}")
         return arm_dof
 
-    def _prepare_m_d(self, mjcf_path, add_mocap):
+    def _prepare_m_d(self, mjcf_path):
         # 设置末端执行器目标（mocap）名称
         mj_model = mujoco.MjModel.from_xml_path(mjcf_path)
-        if add_mocap:
-            self.mocap_name = "target"
-            self.mocap_box_name = self.mocap_name + "_box"
-            try:
-                mid = mj_model.body(self.mocap_name).mocapid[0]
-                if mid == -1:
-                    raise KeyError(f"Mocap body '{self.mocap_name}' not found")
-            except KeyError:
-                # 生成mocap刚体XML元素
-                mocap_body_element = generate_mocap_xml(self.mocap_name)
-                # 将mocap刚体添加到模型中
-                mj_model = add_mocup_body_to_mjcf(mjcf_path, [mocap_body_element])
-            self.mocap_id = mj_model.body(self.mocap_name).mocapid[0]
+        self.mocap_name = "target"
+        self.mocap_box_name = self.mocap_name + "_box"
+        try:
+            mid = mj_model.body(self.mocap_name).mocapid[0]
+            if mid == -1:
+                raise KeyError(f"Mocap body '{self.mocap_name}' not found")
+        except KeyError:
+            # 生成mocap刚体XML元素
+            mocap_body_element = generate_mocap_xml(self.mocap_name)
+            # 将mocap刚体添加到模型中
+            mj_model = add_mocup_body_to_mjcf(mjcf_path, [mocap_body_element])
+        self.mocap_id = mj_model.body(self.mocap_name).mocapid[0]
 
         mj_data = mujoco.MjData(mj_model)
         return mj_model, mj_data
@@ -310,7 +310,7 @@ class Manipulator:
         self.mink_tasks = [self.end_effector_task, self.posture_task]
 
     def _prepare_recorder(self, args):
-        self.enable_record = args.record or len(args.camera_names) > 0
+        self.enable_record = args.record
         self.camera_names = args.camera_names
         self.record_frequency = args.record_frequency or 24
         self.total_record_cnt = 0
@@ -398,9 +398,10 @@ class Manipulator:
                 print(">>> select object:")
                 print(tmat_body)
             print(">>> target_body: ")
-            print(self.mink_target_se3.as_matrix())
+            tmat_mocap = get_mocap_tmat(self.mj_data, self.mocap_id)
+            print(tmat_mocap)
             print(">>> object2target")
-            print(np.linalg.inv(tmat_body) @ self.mink_target_se3.as_matrix())
+            print(np.linalg.inv(tmat_body) @ tmat_mocap)
             self.last_select = self.viewer.perturb.select
     
     def _proc_3dmouse(self):
@@ -415,14 +416,16 @@ class Manipulator:
     
     def _proc_mink_ik(self):
         if self.inference_mode:
-            self.mink_target_se3 = mink.SE3.from_rotation_and_translation(
-                rotation=mink.SO3(self.target_quat_wxyz),
-                translation=self.target_position
-            )
-        else:
-            self.mink_target_se3 = mink.SE3.from_mocap_name(self.mj_model, self.mj_data, self.mocap_name)
+            mink_target = get_site_tmat(self.mj_data, "armbase") @ \
+                mink.SE3.from_rotation_and_translation(
+                    rotation=mink.SO3(self.target_quat_wxyz),
+                    translation=self.target_position
+                ).as_matrix()
+            self.mj_data.mocap_pos[self.mocap_id] = mink_target[:3,3]
+            self.mj_data.mocap_quat[self.mocap_id] = Rotation.from_matrix(mink_target[:3,:3]).as_quat()[[3,0,1,2]]
 
-        self.end_effector_task.set_target(self.mink_target_se3)
+        mink_target_se3 = mink.SE3.from_mocap_name(self.mj_model, self.mj_data, self.mocap_name)
+        self.end_effector_task.set_target(mink_target_se3)
         res = self.converge_ik(self.mj_model.opt.timestep)
         if not self.inference_mode:
             if res:

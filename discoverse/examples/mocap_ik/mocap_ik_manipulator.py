@@ -4,6 +4,7 @@ import time
 import json
 import platform
 import argparse
+import traceback
 import numpy as np
 from scipy.spatial.transform import Rotation
 import mujoco
@@ -27,55 +28,441 @@ from discoverse.utils import (
 from discoverse.universal_manipulation.recorder import PyavImageEncoder
 from discoverse import DISCOVERSE_ROOT_DIR, DISCOVERSE_ASSETS_DIR
 
-def recoder_state_file(save_path, obs_lst):
-    os.makedirs(save_path, exist_ok=True)
+class Manipulator:
+    MINK_SOLVER = "quadprog"
+    MINK_POS_THRESHOLD = 1e-3
+    MINK_ORI_THRESHOLD = 1e-3
+    MINK_MAX_ITERS = 10
 
-    with open(os.path.join(save_path, "obs_action.json"), "w") as fp:
-        save_dict = {
-            "time" : [],
-            "obs"  : {
-                "jq" : [],      # 6个关节角度
-                "jv" : [],      # 6个关节速度
-                "tau": [],      # 6个关节力矩
-                "eef_pos" : [], # 末端执行器位置xyz  armbase坐标系
-                "eef_quat": [], # 末端执行器姿态wxyz armbase坐标系
-                "eef_vel" : [], # 末端执行器速度xyz  armbase坐标系
-                "eef_gyro": [], # 末端imu角速度
-                "eef_acc" : [], # 末端imu加速度
-                "end_force" : [], # 动力学算出来的6维度wrench 训练只用前三维
-            },
-            "act"  : [] # 末端位姿控制 xyz wxyz armbase坐标系
+    def __init__(self, args):
+        self.robot_name = args.robot
+        self.task_name = args.task
+
+        self.mjcf_path = self._prepare_mjcf(args)
+        self.arm_dof = self._prepare_dof(self.mjcf_path)
+        self.mj_model, self.mj_data = self._prepare_mocap(self.mjcf_path)
+        self._prepare_viewer(args)
+        if args.mouse_3d:
+            self._prepare_3dmouse()
+            self.use_3dmouse = True
+        else:
+            self.use_3dmouse = False
+
+        self.impedance_control = ("force" in self.mjcf_path)
+        self.ID_controller = self._prepare_impedance_controller()
+        self._prepare_recorder(args)
+        self._prepare_control_idx()
+        self._prepare_sensors_idx()
+        self._prepare_mink()
+
+        self.reset()
+
+    def run(self):
+        self.last_select = self.viewer.perturb.select
+        last_mj_time = self.mj_data.time
+        try:
+            while self.viewer.is_running():
+                step_start = time.time()
+                if self.enable_record and self.task_success:
+                    self.total_record_cnt += 1
+                    self.recoder_state_file(self.save_dir, self.obs_lst)
+                    self.mj_data.time = -1
+
+                if last_mj_time > self.mj_data.time:
+                    self.reset()
+
+                self.step()
+                last_mj_time = self.mj_data.time
+
+                if self.enable_record and len(self.obs_lst) <= self.mj_data.time * self.record_frequency:
+                    self.record_once()
+
+                # 计算下一步开始前需要等待的时间，保证帧率稳定
+                time_until_next_step = (1. / self.render_fps) - (time.time() - step_start)
+                if time_until_next_step > 0:
+                    time.sleep(time_until_next_step)
+
+        except KeyboardInterrupt:
+            print("用户中断，退出程序")
+
+        finally:
+            self.close()
+            print("程序结束")
+
+    def step(self):
+        self.pre_step()
+
+        # 执行渲染间隔次数的物理仿真步骤
+        for _ in range(self.render_gap):
+            if self.impedance_control: 
+                torque = self.ID_controller.compute_torque()
+                self.mj_data.ctrl[:self.arm_dof] = torque
+                self.ID_controller.update_state(self.mj_data.qpos[:self.arm_dof], self.mj_data.qvel[:self.arm_dof], torque)
+                ee_force = self.ID_controller.get_ext_force()
+            # 执行物理仿真步骤
+            mujoco.mj_step(self.mj_model, self.mj_data)
+
+        self.viewer.sync()
+        self.post_step()
+
+    def reset(self):
+        mujoco.mj_resetDataKeyframe(self.mj_model, self.mj_data, self.mj_model.key(0).id)
+        mujoco.mj_forward(self.mj_model, self.mj_data)
+        self._reset_mink()
+        if self.enable_record:
+            self._reset_recorder()
+
+    def close(self):
+        if self.viewer:
+            self.viewer.close()
+            del self.viewer
+        if self.enable_record and len(self.camera_names):
+            for ec in self.camera_encoders.values():
+                try:
+                    ec.close()
+                except Exception:
+                    pass
+            for k in self.camera_encoders.keys():
+                del self.camera_encoders[k]
+
+    def record_once(self):
+        obs = self.get_observation()
+        imgs = obs.pop('img')
+        for cam_id, img in imgs.items():
+            self.camera_encoders[cam_id].encode(img, obs["time"])
+        self.obs_lst.append(obs)
+
+    def get_observation(self):
+        tmat_target = get_mocap_tmat(self.mj_data, self.mocap_id)
+        tmat_arm_base = get_site_tmat(self.mj_data, "armbase")
+        tmat_target_local = np.linalg.inv(tmat_arm_base) @ tmat_target
+        target_position = tmat_target_local[:3, 3]
+        target_quat = Rotation.from_matrix(tmat_target_local[:3, :3]).as_quat()[[3,0,1,2]]
+        obs = {
+            "time": self.mj_data.time,
+            "jq"  : self.mj_data.sensordata[self.joint_q_sensor_idx].tolist(),
+            "jv"  : self.mj_data.sensordata[self.joint_dq_sensor_idx].tolist(),
+            "tau" : self.mj_data.sensordata[self.joint_tau_sensor_idx].tolist(),
+            "eef_pos" : self.mj_data.sensordata[self.eef_sensor_idx["endpoint_pos"]:self.eef_sensor_idx["endpoint_pos"]+3].tolist(),
+            "eef_quat": self.mj_data.sensordata[self.eef_sensor_idx["endpoint_quat"]:self.eef_sensor_idx["endpoint_quat"]+4].tolist(),
+            "eef_vel" : self.mj_data.sensordata[self.eef_sensor_idx["endpoint_vel"]:self.eef_sensor_idx["endpoint_vel"]+3].tolist(),
+            "eef_gyro": self.mj_data.sensordata[self.eef_sensor_idx["endpoint_gyro"]:self.eef_sensor_idx["endpoint_gyro"]+3].tolist(),
+            "eef_acc" : self.mj_data.sensordata[self.eef_sensor_idx["endpoint_acc"]:self.eef_sensor_idx["endpoint_acc"]+3].tolist(),
+            "end_force" : self.ID_controller.get_ext_force().tolist() if self.impedance_control else [],
+            "action" : np.hstack([target_position, target_quat]).tolist(),
+            "img" : {}
         }
-        for obs in obs_lst:
-            save_dict["time"].append(obs['time'])
-            save_dict["obs"]["jq"].append(obs['jq'])
-            save_dict["obs"]["jv"].append(obs['jv'])
-            save_dict["obs"]["tau"].append(obs['tau'])
-            save_dict["obs"]["eef_pos"].append(obs['eef_pos'])
-            save_dict["obs"]["eef_quat"].append(obs['eef_quat'])
-            save_dict["obs"]["eef_vel"].append(obs['eef_vel'])
-            save_dict["obs"]["eef_gyro"].append(obs['eef_gyro'])
-            save_dict["obs"]["eef_acc"].append(obs['eef_acc'])
-            save_dict["obs"]["end_force"].append(obs['end_force'])
-            save_dict["act"].append(obs['action'])
-        json.dump(save_dict, fp)
+        for camera_name in self.camera_names:
+            self.renderer.update_scene(self.mj_data, camera_name)
+            obs["img"][camera_name] = self.renderer.render()
+        return obs
 
+    def converge_ik(self, dt):
+        for _ in range(self.MINK_MAX_ITERS):
+            vel = mink.solve_ik(self.configuration, self.mink_tasks, dt, self.MINK_SOLVER, 1e-3)
+            self.configuration.integrate_inplace(vel, dt)
+            err = self.end_effector_task.compute_error(self.configuration)
+            pos_achieved = np.linalg.norm(err[:3]) <= self.MINK_POS_THRESHOLD
+            ori_achieved = np.linalg.norm(err[3:]) <= self.MINK_ORI_THRESHOLD
 
-SOLVER = "quadprog"
-POS_THRESHOLD = 1e-3
-ORI_THRESHOLD = 1e-3
-MAX_ITERS = 10
-def converge_ik(configuration, tasks, dt, solver, pos_threshold, ori_threshold, max_iters):
-    for _ in range(max_iters):
-        vel = mink.solve_ik(configuration, tasks, dt, solver, 1e-3)
-        configuration.integrate_inplace(vel, dt)
-        err = tasks[0].compute_error(configuration)
-        pos_achieved = np.linalg.norm(err[:3]) <= pos_threshold
-        ori_achieved = np.linalg.norm(err[3:]) <= ori_threshold
+            if pos_achieved and ori_achieved:
+                return True
+        return False
 
-        if pos_achieved and ori_achieved:
-            return True
-    return False
+    def pre_step(self):
+        if self.use_3dmouse:
+            self._proc_3dmouse()
+        
+        self._proc_mink_ik()
+        self.task_success = self._proc_task_referee()
+
+    def post_step(self):
+        self._proc_perturb()
+
+    def key_press_callback(self, key):
+        pass
+
+    def _prepare_mjcf(self, args):
+        if args.robot is not None and args.task is not None:
+            mjcf_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "tmp", f"{args.robot}_{args.task}.xml")
+            env = make_env(args.robot, args.task, mjcf_path)
+            env.export_xml(mjcf_path)
+        elif args.robot is not None:
+            mjcf_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "manipulator", f"robot_{args.robot}.xml")
+        elif args.mjcf is not None:
+            mjcf_path = args.mjcf
+            # 加载机器人模型的MJCF文件
+            if not os.path.exists(mjcf_path):
+                paths = [
+                    os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", mjcf_path),
+                    os.path.join(DISCOVERSE_ASSETS_DIR, mjcf_path),
+                    os.path.join(os.getcwd(), mjcf_path),
+                ]
+                for path in paths:
+                    if os.path.exists(path) and os.path.isfile(path) and (path.endswith(".xml") or path.endswith(".mjb")):
+                        mjcf_path = path
+                        break
+                else:
+                    raise FileNotFoundError(f"MJCF file not found: {mjcf_path}")
+        else:
+            mjcf_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "manipulator", "robot_airbot_play.xml")        
+
+        return mjcf_path
+
+    def _prepare_dof(self, mjcf_path):
+        if "airbot_play" in mjcf_path:
+            arm_dof = 6
+        elif "arx_l5" in mjcf_path:
+            arm_dof = 6
+        elif "arx_x5" in mjcf_path:
+            arm_dof = 6
+        elif "piper" in mjcf_path:
+            arm_dof = 6
+        elif "rm65" in mjcf_path:
+            arm_dof = 6
+        elif "ur5e" in mjcf_path:
+            arm_dof = 6
+        elif "panda" in mjcf_path:
+            arm_dof = 7
+        elif "iiwa14" in mjcf_path:
+            arm_dof = 7
+        elif "xarm7" in mjcf_path:
+            arm_dof = 7
+        else:
+            raise ValueError(f"Unsupported robot: {self.robot_name}")
+        return arm_dof
+
+    def _prepare_mocap(self, mjcf_path):
+        # 设置末端执行器目标（mocap）名称
+        self.mocap_name = "target"
+        self.mocap_box_name = self.mocap_name + "_box"
+
+        mj_model = mujoco.MjModel.from_xml_path(mjcf_path)
+        try:
+            mid = mj_model.body(self.mocap_name).mocapid[0]
+            if mid == -1:
+                raise KeyError(f"Mocap body '{self.mocap_name}' not found")
+        except KeyError:
+            # 生成mocap刚体XML元素
+            mocap_body_element = generate_mocap_xml(self.mocap_name)
+            # 将mocap刚体添加到模型中
+            mj_model = add_mocup_body_to_mjcf(mjcf_path, [mocap_body_element])
+        mj_data = mujoco.MjData(mj_model)
+        self.mocap_id = mj_model.body(self.mocap_name).mocapid[0]
+
+        return mj_model, mj_data
+
+    def _prepare_impedance_controller(self):
+        if self.impedance_control:
+            mjcf_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "manipulator", f"robot_{self.robot_name}.xml")
+            mj_model_idc = mujoco.MjModel.from_xml_path(mjcf_path)
+            kp = [100, 100, 100, 5, 100, 5]
+            kd = [5, 5, 5, 0.5, 0.5, 0.1]
+            return ImpedanceController(mj_model_idc, kp, kd)
+        else:
+            return None
+
+    def _prepare_control_idx(self):
+        # get_control_idx(self.mj_model)
+        pass
+
+    def _prepare_sensors_idx(self):
+        self.joint_q_sensor_idx = np.array(list(get_sensor_idx(self.mj_model, [f"joint{i+1}_pos" for i in range(self.arm_dof)], check=self.enable_record).values()))
+        self.joint_dq_sensor_idx = np.array(list(get_sensor_idx(self.mj_model, [f"joint{i+1}_vel" for i in range(self.arm_dof)], check=self.enable_record).values()))
+        self.joint_tau_sensor_idx = np.array(list(get_sensor_idx(self.mj_model, [f"joint{i+1}_torque" for i in range(self.arm_dof)], check=self.enable_record).values()))
+        self.eef_sensor_idx = get_sensor_idx(self.mj_model, ["endpoint_pos", "endpoint_quat", "endpoint_vel", "endpoint_gyro", "endpoint_acc"], check=self.enable_record)
+
+    def _prepare_mink(self):
+        # Create a Mink configuration
+        self.configuration = mink.Configuration(self.mj_model)
+        # Define tasks
+        self.end_effector_task = mink.FrameTask(
+            frame_name="endpoint",
+            frame_type="site",
+            position_cost=100.0,
+            orientation_cost=10.0,
+            lm_damping=1.0,
+        )
+        self.posture_task = mink.PostureTask(model=self.mj_model, cost=1e-2)
+        self.mink_tasks = [self.end_effector_task, self.posture_task]
+
+    def _prepare_recorder(self, args):
+        self.enable_record = args.record or len(args.camera_names) > 0
+        self.camera_names = args.camera_names
+        self.record_frequency = args.record_frequency or 24
+        self.total_record_cnt = 0
+        self.renderer = mujoco.Renderer(self.mj_model) if len(self.camera_names) else None
+        if self.renderer:
+            self.img_width = 640
+            self.img_height = 480
+            self._set_renderer_size(self.img_width, self.img_height)
+
+        self.task_success = False
+        self.obs_lst = []
+        self.save_dir = os.path.join(DISCOVERSE_ROOT_DIR, "data", f"{self.robot_name}_{self.task_name}", f"{self.total_record_cnt:03d}")
+        self._set_encoders(self.camera_names)
+
+    def _prepare_viewer(self, args):
+        # 设置渲染帧率
+        self.render_fps = 125.0
+        # 计算渲染间隔，确保按照指定帧率渲染
+        self.render_gap = int(1.0 / self.render_fps / self.mj_model.opt.timestep)
+
+        try:
+            # 启动MuJoCo查看器
+            self.viewer = mujoco.viewer.launch_passive(
+                self.mj_model, self.mj_data, 
+                show_left_ui=False, 
+                show_right_ui=False,
+                key_callback=self.key_press_callback
+            )
+            if not args.hide_mocap:
+                self.viewer.opt.geomgroup[5] = 1  # 显示group 5中的几何体
+        except RuntimeError as e:
+            if "mjpython" in str(e) and platform.system() == "Darwin":
+                print("\n错误: 在macOS上必须使用mjpython运行此脚本")
+                print("请使用以下命令:")
+                print(f"mjpython {' '.join(sys.argv)}")
+            else:
+                print(f"运行时错误: {e}")
+            sys.exit(1)
+
+    def _prepare_3dmouse(self):
+        import pyspacemouse
+        self.smouse = pyspacemouse
+        success = self.smouse.open()
+        if not success:
+            print("3D鼠标打开失败，请检查设备连接")
+            sys.exit(1)
+
+    def _reset_recorder(self):
+        self.task_success = False
+        self.obs_lst = []
+        self.save_dir = os.path.join(DISCOVERSE_ROOT_DIR, "data", f"{self.robot_name}_{self.task_name}", f"{self.total_record_cnt:03d}")
+        self._set_encoders(self.camera_names)
+    
+    def _set_encoders(self, camera_names):
+        if hasattr(self, 'camera_encoders'):
+            for ec in self.camera_encoders.values():
+                try:
+                    ec.close()
+                except Exception:
+                    pass
+        self.camera_encoders = {}
+        for cam_name in camera_names:
+            if mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_CAMERA, cam_name) < 0:
+                print(f"Camera '{cam_name}' not found in the MJCF model.")
+            else:
+                self.camera_encoders[cam_name] = PyavImageEncoder(
+                    self.img_width,
+                    self.img_height,
+                    self.save_dir,
+                    cam_name,
+                    fps=self.record_frequency,
+                )
+    
+    def _reset_mink(self):
+        mink.move_mocap_to_frame(self.mj_model, self.mj_data, self.mocap_name, "endpoint", "site")
+        self.configuration.update(self.mj_data.qpos)
+        self.posture_task.set_target_from_configuration(self.configuration)
+    
+    def _proc_perturb(self):
+        if self.last_select != self.viewer.perturb.select:
+            body_name = self.mj_model.body(self.viewer.perturb.select).name
+            print(f"选择物体: {body_name}")
+            tmat_body = get_body_tmat(self.mj_data, body_name)
+            if body_name != self.mocap_name:
+                print(">>> select object:")
+                print(tmat_body)
+            print(">>> target_body: ")
+            print(self.mink_target_se3.as_matrix())
+            print(">>> object2target")
+            print(np.linalg.inv(tmat_body) @ self.mink_target_se3.as_matrix())
+            self.last_select = self.viewer.perturb.select
+    
+    def _proc_3dmouse(self):
+        state = self.smouse.read()
+        delta_position = np.array([state.y, -state.x, state.z])
+        delta_position *= (np.abs(delta_position) > 0.01)
+        delta_position = np.pow(delta_position, 2) * np.sign(delta_position)
+        # delta_euler = np.array([-state.roll, -state.pitch, state.yaw])
+        # tmat_mocap = get_mocap_tmat(mj_data, mocap_id)
+        rmat_base = get_site_tmat(self.mj_data, "armbase")[:3,:3]
+        self.mj_data.mocap_pos[self.mocap_id] += (rmat_base @ delta_position) * 0.2 / self.render_fps
+    
+    def _proc_mink_ik(self):
+        self.mink_target_se3 = mink.SE3.from_mocap_name(self.mj_model, self.mj_data, self.mocap_name)
+        self.end_effector_task.set_target(self.mink_target_se3)
+        res = self.converge_ik(self.mj_model.opt.timestep)
+        if res:
+            # 设置目标框为绿色（表示IK计算成功）
+            self.mj_model.geom(self.mocap_box_name).rgba = (0.3, 0.6, 0.3, 0.2)
+        else:
+            # 设置目标框为红色（表示IK计算失败）
+            self.mj_model.geom(self.mocap_box_name).rgba = (0.6, 0.3, 0.3, 0.2)
+
+        if self.impedance_control:
+            q_desired = self.configuration.q[:self.arm_dof]
+            self.ID_controller.set_target(q_desired)
+            self.ID_controller.update_state(self.mj_data.qpos[:self.arm_dof], self.mj_data.qvel[:self.arm_dof])
+        else:
+            self.mj_data.ctrl[:self.arm_dof] = self.configuration.q[:self.arm_dof]
+
+    def _proc_task_referee(self):
+        success = False
+        if self.task_name == "peg_in_hole":
+            tmat_endpoint = get_site_tmat(self.mj_data, "endpoint")
+            tmat_hole = get_body_tmat(self.mj_data, "hole")
+            dist_xy = np.linalg.norm(tmat_endpoint[:2,3] - tmat_hole[:2,3])
+            dist_z = tmat_endpoint[2,3] - tmat_hole[2,3]
+            if dist_xy < 0.005 and dist_z < 0.001 and np.abs(tmat_endpoint[0,2]) > 0.9996573249755573:
+                self.mj_model.geom("peg_box").rgba = (0, 1, 0, 1)
+                success = True
+            else:
+                self.mj_model.geom("peg_box").rgba = (1, 0, 0, 1)
+        return success
+                
+    def _set_renderer_size(self, width, height):
+        if self.renderer is None:
+            raise ValueError("Renderer is not initialized.")
+        else:
+            self.renderer._width = width
+            self.renderer._height = height
+            self.renderer._rect.width = width
+            self.renderer._rect.height = height
+
+    def recoder_state_file(self, save_path, obs_lst):
+        os.makedirs(save_path, exist_ok=True)
+
+        with open(os.path.join(save_path, "obs_action.json"), "w") as fp:
+            save_dict = {
+                "time" : [],
+                "obs"  : {
+                    "jq" : [],      # 6个关节角度
+                    "jv" : [],      # 6个关节速度
+                    "tau": [],      # 6个关节力矩
+                    "eef_pos" : [], # 末端执行器位置xyz  armbase坐标系
+                    "eef_quat": [], # 末端执行器姿态wxyz armbase坐标系
+                    "eef_vel" : [], # 末端执行器速度xyz  armbase坐标系
+                    "eef_gyro": [], # 末端imu角速度
+                    "eef_acc" : [], # 末端imu加速度
+                    "end_force" : [], # 动力学算出来的6维度wrench 训练只用前三维
+                },
+                "act"  : [] # 末端位姿控制 xyz wxyz armbase坐标系
+            }
+            for obs in obs_lst:
+                save_dict["time"].append(obs['time'])
+                save_dict["obs"]["jq"].append(obs['jq'])
+                save_dict["obs"]["jv"].append(obs['jv'])
+                save_dict["obs"]["tau"].append(obs['tau'])
+                save_dict["obs"]["eef_pos"].append(obs['eef_pos'])
+                save_dict["obs"]["eef_quat"].append(obs['eef_quat'])
+                save_dict["obs"]["eef_vel"].append(obs['eef_vel'])
+                save_dict["obs"]["eef_gyro"].append(obs['eef_gyro'])
+                save_dict["obs"]["eef_acc"].append(obs['eef_acc'])
+                save_dict["obs"]["end_force"].append(obs['end_force'])
+                save_dict["act"].append(obs['action'])
+            json.dump(save_dict, fp)
 
 if __name__ == "__main__":
     """
@@ -144,9 +531,13 @@ if __name__ == "__main__":
         type=str, nargs='*', default=[],
         help="指定需要渲染的相机名称列表（可选）"
     )
+    parser.add_argument(
+        '--inference',
+        action='store_true',
+        help='启用推理模式'
+    )
 
     args = parser.parse_args()
-    enable_record = args.record or len(args.camera_names) > 0
 
     # 检查是否在macOS上运行并给出适当的提示
     if platform.system() == "Darwin" and not args.y:
@@ -161,13 +552,6 @@ if __name__ == "__main__":
             print("退出程序。")
             sys.exit(0)
 
-    if args.mouse_3d:
-        import pyspacemouse
-        success = pyspacemouse.open()
-        if not success:
-            print("3D鼠标打开失败，请检查设备连接")
-            sys.exit(1)
-
     # 打印MuJoCo查看器的使用提示信息
     print("\n===================== MuJoCo 查看器使用说明 =====================")
     print("1. 双击选中机械臂末端的绿色方块，按下ctrl和鼠标左键，拖动鼠标可以旋转机械臂")
@@ -178,321 +562,10 @@ if __name__ == "__main__":
     print("4. 在右侧 UI 的 control 面板中可以调节 gripper 滑块控制夹爪的开合。")
     print("================================================================\n")
 
-    robot_name = args.robot
-    task_name = args.task
-    if robot_name is not None and task_name is not None:
-        mjcf_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "tmp", f"{robot_name}_{task_name}.xml")
-        env = make_env(robot_name, task_name, mjcf_path)
-        env.export_xml(mjcf_path)
-    elif robot_name is not None:
-        mjcf_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "manipulator", f"robot_{robot_name}.xml")
-    elif args.mjcf is not None:
-        mjcf_path = args.mjcf
-    else:
-        mjcf_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "manipulator", "robot_airbot_play.xml")
-
-    if "airbot_play" in mjcf_path:
-        arm_dof = 6
-    elif "arx_l5" in mjcf_path:
-        arm_dof = 6
-    elif "arx_x5" in mjcf_path:
-        arm_dof = 6
-    elif "piper" in mjcf_path:
-        arm_dof = 6
-    elif "rm65" in mjcf_path:
-        arm_dof = 6
-    elif "ur5e" in mjcf_path:
-        arm_dof = 6
-    elif "panda" in mjcf_path:
-        arm_dof = 7
-    elif "iiwa14" in mjcf_path:
-        arm_dof = 7
-    elif "xarm7" in mjcf_path:
-        arm_dof = 7
-    else:
-        raise ValueError(f"Unsupported robot: {robot_name}")
-
-    impedance_control = ("force" in mjcf_path)
-
-    # 加载机器人模型的MJCF文件
-    if not os.path.exists(mjcf_path):
-        paths = [
-            os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", mjcf_path),
-            os.path.join(DISCOVERSE_ASSETS_DIR, mjcf_path),
-            os.path.join(os.getcwd(), mjcf_path),
-        ]
-        for path in paths:
-            if os.path.exists(path) and os.path.isfile(path) and (path.endswith(".xml") or path.endswith(".mjb")):
-                mjcf_path = path
-                break
-    if mjcf_path is None:
-        raise FileNotFoundError(f"MJCF file not found: {mjcf_path}")
-    print("mjcf_path : " , mjcf_path)
-
-    # 设置末端执行器目标（mocap）名称
-    mocap_name = "target"
-    mocap_box_name = mocap_name + "_box"
-
-    mj_model = mujoco.MjModel.from_xml_path(mjcf_path)
+    exec_node = Manipulator(args)
     try:
-        mid = mj_model.body(mocap_name).mocapid[0]
-        if mid == -1:
-            raise KeyError(f"Mocap body '{mocap_name}' not found")
-    except KeyError:
-        # 生成mocap刚体XML元素
-        mocap_body_element = generate_mocap_xml(mocap_name)
-        # 将mocap刚体添加到模型中
-        mj_model = add_mocup_body_to_mjcf(mjcf_path, [mocap_body_element])
-    mj_data = mujoco.MjData(mj_model)
-
-    mocap_id = mj_model.body(mocap_name).mocapid[0]
-    joint_q_sensor_idx = np.array(list(get_sensor_idx(mj_model, [f"joint{i+1}_pos" for i in range(arm_dof)]).values()))
-    joint_dq_sensor_idx = np.array(list(get_sensor_idx(mj_model, [f"joint{i+1}_vel" for i in range(arm_dof)]).values()))
-    joint_tau_sensor_idx = np.array(list(get_sensor_idx(mj_model, [f"joint{i+1}_torque" for i in range(arm_dof)]).values()))
-    eef_sensor_idx = get_sensor_idx(mj_model, ["endpoint_pos", "endpoint_quat", "endpoint_vel", "endpoint_gyro", "endpoint_acc"])
-
-    if impedance_control:
-        mjcf_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf", "manipulator", f"robot_{robot_name}.xml")
-        mj_model_idc = mujoco.MjModel.from_xml_path(mjcf_path)
-        kp = [100, 100, 100, 5, 100, 5]
-        kd = [5, 5, 5, 0.5, 0.5, 0.1]
-        ID_controller = ImpedanceController(mj_model_idc, kp, kd)
-    else:
-        ID_controller = None
-
-    if enable_record:
-        camera_names = args.camera_names
-
-        if len(camera_names):
-            renderer = mujoco.Renderer(mj_model)
-            img_width, img_height = 640, 480
-            renderer._width = img_width
-            renderer._height = img_height
-            renderer._rect.width = img_width
-            renderer._rect.height = img_height
-        else:
-            renderer = None
-
-        def get_observation():
-            tmat_target = get_mocap_tmat(mj_data, mocap_id)
-            tmat_arm_base = get_site_tmat(mj_data, "armbase")
-            tmat_target_local = np.linalg.inv(tmat_arm_base) @ tmat_target
-            target_position = tmat_target_local[:3, 3]
-            target_quat = Rotation.from_matrix(tmat_target_local[:3, :3]).as_quat()[[3,0,1,2]]
-            obs = {
-                "time": mj_data.time,
-                "jq"  : mj_data.sensordata[joint_q_sensor_idx].tolist(),
-                "jv"  : mj_data.sensordata[joint_dq_sensor_idx].tolist(),
-                "tau" : mj_data.sensordata[joint_tau_sensor_idx].tolist(),
-                "eef_pos" : mj_data.sensordata[eef_sensor_idx["endpoint_pos"]:eef_sensor_idx["endpoint_pos"]+3].tolist(),
-                "eef_quat": mj_data.sensordata[eef_sensor_idx["endpoint_quat"]:eef_sensor_idx["endpoint_quat"]+4].tolist(),
-                "eef_vel" : mj_data.sensordata[eef_sensor_idx["endpoint_vel"]:eef_sensor_idx["endpoint_vel"]+3].tolist(),
-                "eef_gyro": mj_data.sensordata[eef_sensor_idx["endpoint_gyro"]:eef_sensor_idx["endpoint_gyro"]+3].tolist(),
-                "eef_acc" : mj_data.sensordata[eef_sensor_idx["endpoint_acc"]:eef_sensor_idx["endpoint_acc"]+3].tolist(),
-                "end_force" : ID_controller.get_ext_force().tolist() if impedance_control else [],
-                "action" : np.hstack([target_position, target_quat]).tolist(),
-                "img" : {}
-            }
-            if renderer:
-                for camera_name in camera_names:
-                    renderer.update_scene(mj_data, camera_name)
-                    obs["img"][camera_name] = renderer.render()
-            return obs
-
-    # Create a Mink configuration
-    configuration = mink.Configuration(mj_model)
-    # Define tasks
-    end_effector_task = mink.FrameTask(
-        frame_name="endpoint",
-        frame_type="site",
-        position_cost=100.0,
-        orientation_cost=10.0,
-        lm_damping=1.0,
-    )
-    posture_task = mink.PostureTask(model=mj_model, cost=1e-2)
-    mink_tasks = [end_effector_task, posture_task]
-    
-    try:
-        def key_press_callback(key):
-            pass
-
-        # 启动MuJoCo查看器
-        viewer = mujoco.viewer.launch_passive(
-            mj_model, mj_data, 
-            show_left_ui=False, 
-            show_right_ui=False,
-            key_callback=key_press_callback
-        )
-    except RuntimeError as e:
-        if "mjpython" in str(e) and platform.system() == "Darwin":
-            print("\n错误: 在macOS上必须使用mjpython运行此脚本")
-            print("请使用以下命令:")
-            print(f"mjpython {' '.join(sys.argv)}")
-        else:
-            print(f"运行时错误: {e}")
-        sys.exit(1)
-
-    try:
-        # 设置渲染帧率
-        render_fps = 125.0
-        # 计算渲染间隔，确保按照指定帧率渲染
-        render_gap = int(1.0 / render_fps / mj_model.opt.timestep)
-
-        obs_lst = []
-        camera_encoders = {}
-        total_record_cnt = 0
-        save_dir = ""
-        success = False
-
-        if not args.hide_mocap:
-            viewer.opt.geomgroup[5] = 1  # 显示group 5中的几何体
-
-        def reset():
-            global obs_lst, camera_encoders, save_dir, success
-
-            mujoco.mj_resetDataKeyframe(mj_model, mj_data, mj_model.key(0).id)
-            mujoco.mj_forward(mj_model, mj_data)
-            mink.move_mocap_to_frame(mj_model, mj_data, mocap_name, "endpoint", "site")
-            configuration.update(mj_data.qpos)
-            posture_task.set_target_from_configuration(configuration)
-
-            save_dir = os.path.join(DISCOVERSE_ROOT_DIR, "data", f"{robot_name}_{task_name}", f"{total_record_cnt:03d}")
-
-            if enable_record:
-                obs_lst = []
-                camera_encoders = {}
-                if len(camera_names):
-                    for cam_name in camera_names:
-                        if mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_CAMERA, cam_name) < 0:
-                            print(f"Camera '{cam_name}' not found in the MJCF model.")
-                        else:
-                            camera_encoders[cam_name] = PyavImageEncoder(
-                                img_width,
-                                img_height,
-                                save_dir,
-                                cam_name,
-                                fps=args.record_frequency or 24,
-                            )
-            success = False
-
-        reset()
-        last_select = viewer.perturb.select
-        last_mj_time = mj_data.time
-        while viewer.is_running():
-            # 记录步骤开始时间
-            step_start = time.time()
-            if success and enable_record:
-                total_record_cnt += 1
-                recoder_state_file(save_dir, obs_lst)
-                mj_data.time = -1
-
-            if last_mj_time > mj_data.time:
-                # after reset signal
-                if enable_record and len(camera_names):
-                    for ec in camera_encoders.values():
-                        ec.close()
-                reset()
-
-            if enable_record and len(obs_lst) <= mj_data.time * args.record_frequency:
-                obs = get_observation()
-                imgs = obs.pop('img')
-                for cam_id, img in imgs.items():
-                    camera_encoders[cam_id].encode(img, obs["time"])
-                obs_lst.append(obs)
-
-            ###################################################################################
-            if task_name == "peg_in_hole":
-                tmat_endpoint = get_site_tmat(mj_data, "endpoint")
-                tmat_hole = get_body_tmat(mj_data, "hole")
-                dist_xy = np.linalg.norm(tmat_endpoint[:2,3] - tmat_hole[:2,3])
-                dist_z = tmat_endpoint[2,3] - tmat_hole[2,3]
-                if dist_xy < 0.005 and dist_z < 0.001 and np.abs(tmat_endpoint[0,2]) > 0.9996573249755573:
-                    mj_model.geom("peg_box").rgba = (0, 1, 0, 1)
-                    success = True
-                else:
-                    mj_model.geom("peg_box").rgba = (1, 0, 0, 1)
-
-            ###################################################################################
-
-            if args.mouse_3d:
-                state = pyspacemouse.read()
-                delta_position = np.array([state.y, -state.x, state.z])
-                delta_position *= (np.abs(delta_position) > 0.01)
-                delta_position = np.pow(delta_position, 2) * np.sign(delta_position)
-                delta_euler = np.array([-state.roll, -state.pitch, state.yaw])
-
-                # tmat_mocap = get_mocap_tmat(mj_data, mocap_id)
-                rmat_base = get_site_tmat(mj_data, "armbase")[:3,:3]
-                mj_data.mocap_pos[mocap_id] += (rmat_base @ delta_position) * 0.2 / render_fps
-
-            T_wt = mink.SE3.from_mocap_name(mj_model, mj_data, mocap_name)
-            end_effector_task.set_target(T_wt)
-            res = converge_ik(
-                configuration,
-                mink_tasks,
-                mj_model.opt.timestep,
-                SOLVER,
-                POS_THRESHOLD,
-                ORI_THRESHOLD,
-                MAX_ITERS,
-            )
-            if impedance_control:
-                q_desired = configuration.q[:arm_dof]
-                ID_controller.set_target(q_desired)
-                ID_controller.update_state(mj_data.qpos[:arm_dof], mj_data.qvel[:arm_dof])
-            else:
-                mj_data.ctrl[:arm_dof] = configuration.q[:arm_dof]
-
-            if res:
-                # 设置目标框为绿色（表示IK计算成功）
-                mj_model.geom(mocap_box_name).rgba = (0.3, 0.6, 0.3, 0.2)
-            else:
-                # 设置目标框为红色（表示IK计算失败）
-                mj_model.geom(mocap_box_name).rgba = (0.6, 0.3, 0.3, 0.2)
-
-            # 执行渲染间隔次数的物理仿真步骤
-            for i in range(render_gap):
-                if impedance_control: 
-                    torque = ID_controller.compute_torque()
-                    mj_data.ctrl[:arm_dof] = torque
-                    ID_controller.update_state(mj_data.qpos[:arm_dof], mj_data.qvel[:arm_dof], torque)
-                    ee_force = ID_controller.get_ext_force()
-                # 执行物理仿真步骤
-                mujoco.mj_step(mj_model, mj_data)
-            last_mj_time = mj_data.time
-
-            # 同步查看器状态
-            viewer.sync()
-
-            if last_select != viewer.perturb.select:
-                body_name = mj_model.body(viewer.perturb.select).name
-                print(f"选择物体: {body_name}")
-                tmat_body = get_body_tmat(mj_data, body_name)
-                if body_name != mocap_name:
-                    print(">>> select object:")
-                    print(tmat_body)
-                print(">>> target_body: ")
-                print(T_wt.as_matrix())
-                print(">>> object2target")
-                print(np.linalg.inv(tmat_body) @ T_wt.as_matrix())
-                last_select = viewer.perturb.select
-
-            # 计算下一步开始前需要等待的时间，保证帧率稳定
-            time_until_next_step = (1. / render_fps) - (time.time() - step_start)
-            if time_until_next_step > 0:
-                time.sleep(time_until_next_step)
-
-    except KeyboardInterrupt:
-        print("用户中断，退出程序")
-
+        exec_node.run()
+    except Exception as e:
+        traceback.print_exc()
     finally:
-        viewer.close()
-        if args.mouse_3d:
-            pyspacemouse.close()
-        if enable_record and len(camera_names):
-            for ec in camera_encoders.values():
-                try:
-                    ec.close()
-                except Exception:
-                    pass
-        print("程序结束")
+        pass

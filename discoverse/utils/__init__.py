@@ -29,7 +29,7 @@ def get_body_tmat(mj_data, body_name):
     tmat[:3,3] = mj_data.body(body_name).xpos
     return tmat
 
-def get_control_idx(mj_model, control_names):
+def get_control_idx(mj_model, control_names, check=False):
     control_idx = {
         ctr_name : mujoco.mj_name2id(
             mj_model, 
@@ -38,11 +38,12 @@ def get_control_idx(mj_model, control_names):
         ) 
         for ctr_name in control_names
     }
-    for k in control_idx:
-        assert control_idx[k] >= 0, f"Control name not found in model: {k}"
+    if check:
+        for k in control_idx:
+            assert control_idx[k] >= 0, f"Control name not found in model: {k}"
     return control_idx
 
-def get_sensor_idx(mj_model, sensor_names):
+def get_sensor_idx(mj_model, sensor_names, check=False):
     sensor_id_cumsum = np.cumsum(mj_model.sensor_dim) - mj_model.sensor_dim
     sensor_idx = {
         sn : mujoco.mj_name2id(
@@ -52,8 +53,9 @@ def get_sensor_idx(mj_model, sensor_names):
         ) 
         for sn in sensor_names
     }
-    for k in sensor_idx:
-        assert sensor_idx[k] >= 0, f"Sensor name not found in model: {k}"
+    if check:
+        for k in sensor_idx:
+            assert sensor_idx[k] >= 0, f"Sensor name not found in model: {k}"
     sensor_data_id = {}
     for k, v in sensor_idx.items():
         sensor_data_id[k] = sensor_id_cumsum[v].item()

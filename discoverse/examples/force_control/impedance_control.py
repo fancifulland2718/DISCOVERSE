@@ -46,3 +46,21 @@ class ImpedanceController:
         mujoco.mj_rne(self.mj_model, self.mj_data, 0, self.bias)
         torque = self.Kp @ position_error + self.Kd @ velocity_error + self.bias[:self.mj_model.nu]
         return torque
+
+if __name__ == "__main__":
+    import os
+    from discoverse import DISCOVERSE_ASSETS_DIR
+
+    np.set_printoptions(precision=3, suppress=True, linewidth=1000)
+
+    mjcf_path = os.path.join(DISCOVERSE_ASSETS_DIR, "mjcf/manipulator", "robot_airbot_play_force.xml")
+    model = mujoco.MjModel.from_xml_path(mjcf_path)
+
+    kp = [100, 100, 100, 5, 100, 5]
+    kd = [5, 5, 5, 0.5, 0.5, 0.1]
+    controller = ImpedanceController(model, kpl=kp, kdl=kd)
+
+    controller.set_target(np.zeros(6))
+    controller.update_state(q=np.zeros(6), dq=np.zeros(6), tau=np.zeros(6))
+    tau = controller.compute_torque()
+    print(tau)

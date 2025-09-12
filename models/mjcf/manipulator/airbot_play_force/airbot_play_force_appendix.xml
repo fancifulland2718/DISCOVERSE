@@ -8,7 +8,7 @@
   </tendon>
 
   <equality>
-    <joint joint1='g2_left_joint' joint2='g2_right_joint' polycoef='0 -1 0 0 0 '/>
+    <joint joint1='g2_left_joint' joint2='g2_right_joint' polycoef='0 1 0 0 0 '/>
   </equality>
 
 </mujocoinclude>

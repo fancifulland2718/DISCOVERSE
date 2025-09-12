@@ -31,12 +31,12 @@
                 <site name="endpoint" pos='0 0 0.236' quat="0.5 0.5 -0.5 0.5"/>
                 <body name="g2_left_link" pos="0 0 0.166" quat="0.707105 0 -0.707108 0">
                   <inertial pos="0.018307 5.9636e-06 0.012505" quat="0 0.798204 0 0.602388" mass="0.054004" diaginertia="5.10732e-05 4.78e-05 2.24468e-05"/>
-                  <joint name="g2_left_joint" pos="0 0 0" axis="0 0 1" type="slide" range="0 0.0366"/>
+                  <!-- <joint name="g2_left_joint" pos="0 0 0" axis="0 0 1" type="slide" range="0 0.0366"/> -->
                   <geom type="mesh" rgba="0.75294 0.75294 0.75294 1" mesh="g2_left_link"/>
                 </body>
                 <body name="g2_right_link" pos="0 0 0.166" quat="-2.59734e-06 0.707105 2.59735e-06 0.707108">
                   <inertial pos="0.018307 -6.8572e-07 0.012505" quat="0 0.602388 0 0.798204" mass="0.054004" diaginertia="5.10732e-05 4.78e-05 2.24468e-05"/>
-                  <joint name="g2_right_joint" pos="0 0 0" axis="0 0 1" type="slide" range="0 0.0366"/>
+                  <!-- <joint name="g2_right_joint" pos="0 0 0" axis="0 0 1" type="slide" range="0 0.0366"/> -->
                   <geom type="mesh" rgba="0.75294 0.75294 0.75294 1" mesh="g2_right_link"/>
                 </body>
               </body>

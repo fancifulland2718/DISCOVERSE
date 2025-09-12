@@ -438,7 +438,6 @@ class Manipulator:
         if self.impedance_control:
             q_desired = self.configuration.q[:self.arm_dof]
             self.ID_controller.set_target(q_desired)
-            self.ID_controller.update_state(self.mj_data.qpos[:self.arm_dof], self.mj_data.qvel[:self.arm_dof])
         else:
             self.mj_data.ctrl[:self.arm_dof] = self.configuration.q[:self.arm_dof]
 

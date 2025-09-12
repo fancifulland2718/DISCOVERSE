@@ -22,10 +22,9 @@ class ImpedanceController:
         self.mj_data.qvel[:self.ndof] = dq.copy()
         if tau is not None:
             self.mj_data.ctrl[:len(tau)] = tau.copy()
+        mujoco.mj_forward(self.mj_model, self.mj_data)
     
     def get_ext_force(self): # modify
-        mujoco.mj_forward(self.mj_model, self.mj_data)
-        mujoco.mj_inverse(self.mj_model, self.mj_data)
         ee_body_name = "link6"
         ee_id = mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_BODY, ee_body_name)
         tau_total = self.mj_data.qfrc_inverse[:self.ndof].copy() # Total Toque

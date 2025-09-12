@@ -5,6 +5,8 @@ import json
 import platform
 import argparse
 import traceback
+import threading
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial.transform import Rotation
 import mujoco
@@ -88,10 +90,15 @@ class Manipulator:
                 if self.enable_record and len(self.obs_lst) <= self.mj_data.time * self.record_frequency:
                     self.record_once()
 
+                if self.ID_controller and self.ID_controller.enable_plot:
+                    ee_force = self.ID_controller.run_step(dt=self.mj_model.opt.timestep)
+                    # print(self.mj_model.opt.timestep)
+
                 # 计算下一步开始前需要等待的时间，保证帧率稳定
                 time_until_next_step = (1. / self.render_fps) - (time.time() - step_start)
                 if time_until_next_step > 0:
                     time.sleep(time_until_next_step)
+
 
         except KeyboardInterrupt:
             print("用户中断，退出程序")
@@ -114,9 +121,13 @@ class Manipulator:
                 # ee_force = self.ID_controller.get_ext_force()
                 torque = self.ID_controller.compute_torque()
                 self.mj_data.ctrl[:self.arm_dof] = torque[:]
+
             # 执行物理仿真步骤
             mujoco.mj_step(self.mj_model, self.mj_data)
         
+
+        
+
         t1 = self.mj_data.time
         self.viewer.sync()
         t2 = self.mj_data.time
@@ -144,6 +155,8 @@ class Manipulator:
                     pass
             for k in tuple(self.camera_encoders.keys()):
                 del self.camera_encoders[k]
+        if self.ID_controller:
+            self.ID_controller.close()
 
     def record_once(self):
         obs = self.get_observation()
@@ -281,7 +294,8 @@ class Manipulator:
             mj_model_idc = mujoco.MjModel.from_xml_path(mjcf_path)
             kp = [100, 100, 100, 5, 100, 5]
             kd = [5, 5, 5, 0.5, 0.5, 0.1]
-            return ImpedanceController(mj_model_idc, kp, kd)
+            enable_plot=args.plot
+            return ImpedanceController(mj_model_idc, kp, kd, enable_plot)
         else:
             return None
 
@@ -587,6 +601,11 @@ def parse_args():
         '--infer-hz',
         type=float, default=25,
         help="推理频率"
+    )
+    parser.add_argument(
+        '--plot',
+        action='store_true',
+        help="开启画图"
     )
 
     return parser.parse_args()

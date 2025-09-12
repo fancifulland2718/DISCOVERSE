@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
 import os
-import sys
 import time
 import threading
 import numpy as np
-
-# Add paths for imports
-sys.path.append('../mocap_ik')
-sys.path.append('../force_control')
-
-from mink_arm_ik import Mink_IK
-from impedance_control import ImpedanceController
-from joy.joy_controller import JoyController
+from discoverse.examples.mocap_ik.mink_arm_ik import Mink_IK
+from discoverse.examples.force_control.impedance_control import ImpedanceController
+from discoverse.examples.force_control_data_collect_using_joy.joy.joy_controller import JoyController
 from airbot_py.arm import AIRBOTPlay, RobotMode
 from discoverse import DISCOVERSE_ASSETS_DIR
+
 
 np.set_printoptions(precision=3, suppress=True, linewidth=500)
 
@@ -56,6 +51,10 @@ class RobotJoyController:
         
         self.got_init_force = False
         self.init_force = np.zeros(3)
+
+        self.start_collect = False
+
+        self.pause = False
         
     def _init_robot_model(self):
         """Initialize robot model and IK solver"""
@@ -91,19 +90,27 @@ class RobotJoyController:
         self.joy.add_axis_callback(3, self._on_y_axis)
         
         # Left trigger (axis 2) for Z down
-        self.joy.add_axis_callback(2, self._on_z_down)
+        self.joy.add_axis_callback(5, self._on_z_down)
         
         # Right trigger (axis 5) for Z up  
-        self.joy.add_axis_callback(5, self._on_z_up)
+        self.joy.add_axis_callback(2, self._on_z_up)
         
         # Start button (7) to quit
         self.joy.add_button_down_callback(7, self._quit)
         
-        # # A button (0) to reset position
-        # self.joy.add_button_down_callback(0, self._reset_position)
+        # A button (4) to reset position
+        self.joy.add_button_down_callback(0, self._reset_position)
+
+        self.joy.add_button_down_callback(1, self._start_collect)
+
+    def _start_collect(self):
+        self.start_collect = True
+        print("Start collecting data")
         
     def _on_x_axis(self, value):
         """Handle X-axis movement - store continuous value"""
+        if self.pause:
+            return
         # if abs(value) > self.deadzone:
         #     normalized_value = (abs(value) - self.deadzone) / (1.0 - self.deadzone)
         #     if value < 0:
@@ -115,6 +122,8 @@ class RobotJoyController:
             
     def _on_y_axis(self, value):
         """Handle Y-axis movement - store continuous value"""
+        if self.pause:
+            return
         # if abs(value) > self.deadzone:
         #     normalized_value = (abs(value) - self.deadzone) / (1.0 - self.deadzone)
         #     if value < 0:
@@ -126,6 +135,8 @@ class RobotJoyController:
             
     def _on_z_down(self, value):
         """Handle Z down movement - store continuous value"""
+        if self.pause:
+            return
         # trigger_value = (value + 1) / 2
         # if trigger_value > self.deadzone:
         #     self.continuous_move_z = -trigger_value
@@ -136,6 +147,8 @@ class RobotJoyController:
             
     def _on_z_up(self, value):
         """Handle Z up movement - store continuous value"""
+        if self.pause:
+            return
         # trigger_value = (value + 1) / 2
         # if trigger_value > self.deadzone:
         #     self.continuous_move_z = trigger_value
@@ -207,8 +220,27 @@ class RobotJoyController:
             
     def _reset_position(self):
         """Reset to starting position"""
-        self.current_position = np.array([0.205, 0.0, 0.22])
+        # Fixed orientation (pointing downward)
+        self.pause = True
+        time.sleep(0.1)
+        self.airbot_play.switch_mode(RobotMode.PLANNING_POS)
+
+        self.fixed_orientation = np.array([0.707, 0.0, 0.707, 0.0])  # qw, qx, qy, qz
+        
+        # Current end-effector position
+        self.current_position = np.array([0.259, -0.026, 0.176])  # Starting position
+
+        target_joints, _ = self.ik_solver.solve_ik(
+            target_pos = self.current_position,
+            target_ori = self.fixed_orientation,
+            current_qpos = [0,0,0,0,0,0]
+        )
         self._update_robot_target()
+        self.airbot_play.move_to_joint_pos(list(target_joints), True)
+        time.sleep(0.1)
+        self.airbot_play.switch_mode(RobotMode.MIT_INTEGRATED)
+        self.pause = False
+
         print("Position reset")
         
     def _quit(self):
@@ -219,6 +251,9 @@ class RobotJoyController:
     def _robot_state_loop(self):
         """Continuous loop to update robot state and send joint commands"""
         while self.running:
+            if self.pause:
+                time.sleep(0.004)
+                continue
             try:
                 # Get actual robot state from airbot_play
                 self.current_qpos = np.array(self.airbot_play.get_joint_pos())
@@ -348,8 +383,8 @@ class RobotJoyController:
         if self.state_thread and self.state_thread.is_alive():
             self.state_thread.join(timeout=1.0)
         
-        self.airbot_play.switch_mode(RobotMode.PLANNING_POS)
-        self.airbot_play.move_to_joint_pos([0, 0, 0, 0, 0, 0], blocking=True)
+        # self.airbot_play.switch_mode(RobotMode.PLANNING_POS)
+        # self.airbot_play.move_to_joint_pos([0, 0, 0, 0, 0, 0], blocking=True)
         self.joy.quit()
         print("Cleanup complete")
 

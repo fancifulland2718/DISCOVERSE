@@ -99,9 +99,9 @@ class RobotJoyController:
         self.joy.add_button_down_callback(7, self._quit)
         
         # A button (4) to reset position
-        self.joy.add_button_down_callback(0, self._reset_position)
+        self.joy.add_button_down_callback(0, self._start_collect)
+        self.joy.add_button_down_callback(1, self._reset_position)
 
-        self.joy.add_button_down_callback(1, self._start_collect)
 
     def _start_collect(self):
         self.start_collect = True
@@ -263,7 +263,9 @@ class RobotJoyController:
                 # print("position error: ", self.current_qpos-self.target_joints)
                 
                 self.impedance_controller.update_state(self.current_qpos, self.current_qvel, self.current_tau)
-                
+                self.current_ext_force = self.impedance_controller.get_ext_force()
+
+
                 tau = self.impedance_controller.compute_torque()
                 # too_large = False
                 for i in range(len(tau)):
@@ -286,8 +288,9 @@ class RobotJoyController:
                 # print("ext force:", self.impedance_controller.get_ext_force())
                 if not self.got_init_force:
                     self.got_init_force = True
-                    self.init_force = self.impedance_controller.get_ext_force()
-                delta_force = np.linalg.norm(self.impedance_controller.get_ext_force()-self.init_force)
+                    self.init_force = self.current_ext_force
+                # print("External force:", self.current_ext_force)
+                delta_force = np.linalg.norm(self.current_ext_force-self.init_force)
                 # print(f"Delta force: {delta_force:.3f} N")
                 self.update_haptic_feedback(delta_force)
 

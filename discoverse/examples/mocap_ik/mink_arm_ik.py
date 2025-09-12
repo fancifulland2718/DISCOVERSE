@@ -23,12 +23,12 @@ class Mink_IK:
         self.posture_task.set_target_from_configuration(self.configuration)
 
         self.solver = "quadprog"
-        self.pos_threshold = 1e-3
-        self.ori_threshold = 1e-3
-        self.max_iters = 50
+        self.pos_threshold = 5e-3
+        self.ori_threshold = 1e-2
+        self.max_iters = 200
 
     def converge_ik(self, dt=0.0):
-        dt = dt or self.mj_model.opt.timestep
+        dt = dt or self.mj_model.opt.timestep * 2
         for _ in range(self.max_iters):
             vel = mink.solve_ik(self.configuration, self.mink_tasks, dt, self.solver, 1e-3)
             self.configuration.integrate_inplace(vel, dt)
@@ -39,6 +39,18 @@ class Mink_IK:
                 return True
         return False
     
+    def fk(self, current_qpos):
+        # 更新当前配置
+        tmp_q = self.configuration.data.qpos.copy()
+        tmp_q[:len(current_qpos)] = current_qpos[:]
+        self.configuration.update(tmp_q)
+        tmat_base = get_site_tmat(self.configuration.data, "armbase")
+        tmat_endpoint = get_site_tmat(self.configuration.data, "endpoint")
+        tmat_local = np.linalg.inv(tmat_base) @ tmat_endpoint
+        target_position = tmat_local[:3,3]
+        target_quat_wxyz = Rotation.from_matrix(tmat_local[:3,:3]).as_quat()[[3,0,1,2]]
+        return target_position, target_quat_wxyz
+
     def solve_ik(self, 
                  target_pos: np.ndarray, 
                  target_ori: np.ndarray, 
@@ -87,7 +99,7 @@ class Mink_IK:
             temp_config.update(reference_qpos)
             self.posture_task.set_target_from_configuration(temp_config)
         
-        converged = self.converge_ik()
+        converged = self.converge_ik(0.005)
         solution = self.configuration.data.qpos[:self.arm_dof]
 
         return solution, converged

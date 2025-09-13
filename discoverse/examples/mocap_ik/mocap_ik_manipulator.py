@@ -294,7 +294,8 @@ class Manipulator:
             mj_model_idc = mujoco.MjModel.from_xml_path(mjcf_path)
             kp = [100, 100, 100, 5, 100, 5]
             kd = [5, 5, 5, 0.5, 0.5, 0.1]
-            enable_plot=args.plot
+            enable_plot = False
+            # enable_plot=args.plot
             return ImpedanceController(mj_model_idc, kp, kd, enable_plot)
         else:
             return None

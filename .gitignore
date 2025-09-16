@@ -4,6 +4,7 @@
 *build
 *.pyc
 models/3dgs
+models/meshes
 data
 *.DS_Store
 *.mp4
@@ -11,6 +12,7 @@ data
 *tmp*
 *_pb2*.py
 .vscode
+.vs
 *.json
 *.safetensors
 *.pth

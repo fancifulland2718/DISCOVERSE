@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 import time
 import traceback
@@ -19,18 +19,34 @@ from discoverse.utils import BaseConfig
 
 if sys.platform == "linux":
     try:
+        # 尝试导入高斯渲染器相关模块，仅在Linux下支持
+        # GSRenderer: 高斯点云渲染主类
+        # multiple_quaternion_vector3d, multiple_quaternions: 用于批量旋转/变换的工具函数
         from discoverse.gaussian_renderer import GSRenderer
         from discoverse.gaussian_renderer.util_gau import multiple_quaternion_vector3d, multiple_quaternions
         DISCOVERSE_GAUSSIAN_RENDERER = True
 
     except ImportError:
+        # 如果导入失败，打印警告并禁用高斯渲染器
         traceback.print_exc()
         print("Warning: gaussian_splatting renderer not found. Please install the required packages to use it.")
-        DISCOVERSE_GAUSSIAN_RENDERER = False
+        DISCOVERSE_GAUSSIAN_RENDERER = True
 else:
+    # 非Linux平台不支持高斯渲染器
     DISCOVERSE_GAUSSIAN_RENDERER = False
 
 def setRenderOptions(options):
+    """
+    设置Mujoco渲染选项。
+
+    参数:
+        options: mujoco.MjvOption 实例，用于配置渲染标志和帧显示方式。
+
+    功能:
+        - 启用透明渲染和接触力可视化。
+        - 可选启用接触点、质心、扰动力等可视化（默认注释）。
+        - 设置渲染帧为刚体坐标系。
+    """
     options.flags[mujoco.mjtVisFlag.mjVIS_TRANSPARENT] = True
     options.flags[mujoco.mjtVisFlag.mjVIS_CONTACTFORCE] = True
     # options.flags[mujoco.mjtVisFlag.mjVIS_CONTACTPOINT] = True
@@ -40,40 +56,59 @@ def setRenderOptions(options):
     options.frame = mujoco.mjtFrame.mjFRAME_BODY.value
     pass
 
+# 基类定义仿真器基本属性，一代子类定义具体的模型，二代子类定义任务通用接口（例如域随机化）
 class SimulatorBase:
+    # 运行状态标志
     running = True
+    # 当前观测
     obs = None
+    # 各相机的RGB观测缓存
     img_rgb_obs_s = {}
+    # 各相机的深度观测缓存
     img_depth_obs_s = {}
+    # 存储自由刚体的qpos索引
     free_body_qpos_ids = {}
 
-    cam_id = -1  # -1表示自由视角
+    # 当前相机ID，-1表示自由视角
+    cam_id = -1
     last_cam_id = -1
+    # 渲染计数器
     render_cnt = 0
+    # 相机名称列表
     camera_names = []
+    # 相机位姿是否发生变化
     camera_pose_changed = False
+    # 自由相机的旋转矩阵（用于坐标系转换）
     camera_rmat = np.array([
         [ 0,  0, -1],
         [-1,  0,  0],
         [ 0,  1,  0],
     ])
 
+    # 是否使用默认窗口大小
     use_default_window_size = False
+    # 鼠标按键状态
     mouse_pressed = {
         'left': False,
         'right': False,
         'middle': False
     }
+    # 鼠标当前位置
     mouse_pos = {
         'x': 0,
         'y': 0
     }
 
+    # Mujoco渲染选项
     options = mujoco.MjvOption()
 
     def __init__(self, config:BaseConfig):
+        """
+        初始化仿真器基类，加载MJCF模型，设置渲染窗口和相关参数。
+        """
         self.config = config
 
+        # 解析MJCF文件路径
         if self.config.mjcf_file_path.startswith("/"):
             self.mjcf_file = self.config.mjcf_file_path
         elif os.path.exists(self.config.mjcf_file_path):
@@ -87,15 +122,20 @@ class SimulatorBase:
             raise FileNotFoundError("Failed to load mjcf: {}".format(self.mjcf_file))
         self.load_mjcf()
         self.decimation = self.config.decimation
+        # 仿真步长
         self.delta_t = self.mj_model.opt.timestep * self.decimation
+        # 渲染帧率
         self.render_fps = self.config.render_set["fps"]
 
+        # 渲染相关初始化
         if self.config.enable_render:
+            # 初始化自由相机
             self.free_camera = mujoco.MjvCamera()
             self.free_camera.fixedcamid = -1
             self.free_camera.type = mujoco._enums.mjtCamera.mjCAMERA_FREE
             mujoco.mjv_defaultFreeCamera(self.mj_model, self.free_camera)
 
+            # 是否启用高斯渲染器
             self.config.use_gaussian_renderer = self.config.use_gaussian_renderer and DISCOVERSE_GAUSSIAN_RENDERER
             if self.config.use_gaussian_renderer:
                 self.gs_renderer = GSRenderer(self.config.gs_model_dict, self.config.render_set["width"], self.config.render_set["height"])
@@ -109,9 +149,11 @@ class SimulatorBase:
         self.window = None
         self.glfw_initialized = False
         
+        # 设置窗口标题
         if not hasattr(self.config.render_set, "window_title"):
             self.config.render_set["window_title"] = "DISCOVERSE"
         
+        # 初始化GLFW窗口（仅在非headless模式下）
         if self.config.enable_render and not self.config.headless:
             try:
                 if not glfw.init():
@@ -125,11 +167,8 @@ class SimulatorBase:
 
                 # 如果设置了use_default_window_size，禁用窗口最大化功能
                 if self.use_default_window_size:
-                    # 禁用窗口最大化
                     glfw.window_hint(glfw.MAXIMIZED, False)
-                    # 确保窗口有装饰（标题栏等）
                     glfw.window_hint(glfw.DECORATED, True)
-                    # 允许用户手动调整窗口大小
                     glfw.window_hint(glfw.RESIZABLE, True)
                     print("已禁用窗口最大化功能，但允许调整窗口大小")
 
@@ -156,7 +195,7 @@ class SimulatorBase:
                 gl.glShadeModel(gl.GL_SMOOTH)
                 gl.glPixelStorei(gl.GL_UNPACK_ALIGNMENT, 1)
                 
-                # 设置回调
+                # 设置窗口相关回调
                 glfw.set_key_callback(self.window, self.on_key)
                 glfw.set_cursor_pos_callback(self.window, self.on_mouse_move)
                 glfw.set_mouse_button_callback(self.window, self.on_mouse_button)
@@ -166,6 +205,7 @@ class SimulatorBase:
                 if self.use_default_window_size:
                     glfw.set_window_maximize_callback(self.window, self.maximize_callback)
 
+                # macOS下支持Retina显示
                 if sys.platform == "darwin":
                     try:
                         import AppKit
@@ -185,7 +225,7 @@ class SimulatorBase:
                 else:
                     self.screen_scale = 1
 
-                # 注册清理函数
+                # 注册退出清理函数
                 import atexit
                 atexit.register(self._cleanup_before_exit)
 
@@ -197,10 +237,12 @@ class SimulatorBase:
                 self.window = None
 
         self.last_render_time = time.time()
+        # 重置仿真数据
         mujoco.mj_resetData(self.mj_model, self.mj_data)
         mujoco.mj_forward(self.mj_model, self.mj_data)
 
     def maximize_callback(self, window, maximized):
+        # 禁止窗口最大化
         if self.use_default_window_size and maximized:
             glfw.restore_window(window)
 
@@ -213,12 +255,17 @@ class SimulatorBase:
             raise KeyError(f"Body name '{body_name}' not found in free_body_qpos_ids. Available bodies: {list(self.free_body_qpos_ids.keys())}")
     
     def get_joint_position(self, joint_name):
+        # 获取关节位置
         return self.mj_data.qpos[self.mj_model.joint(joint_name).qposadr]
     
     def set_joint_position(self, joint_name, value):
+        # 设置关节位置
         self.mj_data.qpos[self.mj_model.joint(joint_name).qposadr] = value
 
     def load_mjcf(self):
+        """
+        加载MJCF模型文件，初始化mujoco模型和数据，设置相机、渲染器等。
+        """
         if self.mjcf_file.endswith(".xml"):
             self.mj_model = mujoco.MjModel.from_xml_path(self.mjcf_file)
         elif self.mjcf_file.endswith(".mjb"):
@@ -227,9 +274,11 @@ class SimulatorBase:
         # self.mj_model.vis.quality.shadowsize = 4096 * 8
         self.mj_data = mujoco.MjData(self.mj_model)
         if self.config.enable_render:
+            # 记录所有相机名称
             for i in range(self.mj_model.ncam):
                 self.camera_names.append(self.mj_model.camera(i).name)
 
+            # 检查RGB和深度观测相机ID的合法性
             if type(self.config.obs_rgb_cam_id) is int:
                 assert -2 < self.config.obs_rgb_cam_id < len(self.camera_names), "Invalid obs_rgb_cam_id {}".format(self.config.obs_rgb_cam_id)
                 tmp_id = self.config.obs_rgb_cam_id
@@ -248,6 +297,7 @@ class SimulatorBase:
             elif self.config.obs_depth_cam_id is None:
                 self.config.obs_depth_cam_id = []
         
+            # 获取主显示器分辨率，设置窗口最大尺寸
             try:
                 import screeninfo
                 monitors = screeninfo.get_monitors()
@@ -262,8 +312,10 @@ class SimulatorBase:
 
             self.mj_model.vis.global_.offwidth = max(self.mj_model.vis.global_.offwidth, screen_width)
             self.mj_model.vis.global_.offheight = max(self.mj_model.vis.global_.offheight, screen_height)
+            # 初始化Mujoco渲染器
             self.renderer = mujoco.Renderer(self.mj_model, self.config.render_set["height"], self.config.render_set["width"])
 
+        # 记录所有自由刚体的qpos索引
         for i in range(self.mj_model.nbody):
             if len(self.mj_model.body(i).name) and self.mj_model.body(i).dofnum == 6:
                 jq_id = np.where(self.mj_model.jnt_bodyid == self.mj_model.body(i).id)[0]
@@ -273,9 +325,11 @@ class SimulatorBase:
         self.post_load_mjcf()
 
     def post_load_mjcf(self):
+        # 供一代子类重载，模型加载后自定义操作
         pass
 
     def update_renderer_window_size(self, width, height):
+        # 更新渲染器窗口尺寸
         self.renderer._width = width
         self.renderer._height = height
         self.renderer._rect.width = width
@@ -284,16 +338,16 @@ class SimulatorBase:
             self.gs_renderer.set_camera_resolution(height, width)
 
     def get_random_texture(self):
+        # 随机获取一张纹理图片
         TEXTURE_1K_PATH = os.getenv("TEXTURE_1K_PATH", os.path.join(DISCOVERSE_ASSETS_DIR, "textures_1k"))
         if not TEXTURE_1K_PATH is None and os.path.exists(TEXTURE_1K_PATH):
             return Image.open(os.path.join(TEXTURE_1K_PATH, random.choice(os.listdir(TEXTURE_1K_PATH))))
         else:
-            # raise ValueError("TEXTURE_1K_PATH not found")
             print("Warning: TEXTURE_1K_PATH not found! Please set the TEXTURE_1K_PATH environment variable to the path of the textures_1k directory.")
             return Image.fromarray(np.random.randint(0, 255, (768, 768, 3), dtype=np.uint8))
 
     def update_texture(self, texture_name, mtl_img_pil, no_render=False):
-        """更新纹理"""
+        """更新指定名称的纹理贴图"""
         if not hasattr(self, 'renderer') or self.renderer is None:
             print(f"Renderer not initialized, cannot update texture: {texture_name}")
             return False
@@ -347,24 +401,30 @@ class SimulatorBase:
         return True
 
     def render(self):
+        """
+        渲染主循环，负责采集RGB/深度图像、窗口显示、帧同步等。
+        """
         self.render_cnt += 1
 
         self.update_renderer_window_size(self.config.render_set["width"], self.config.render_set["height"])
         if self.config.use_gaussian_renderer and self.show_gaussian_img:
             self.update_gs_scene()
         
+        # 采集RGB观测
         depth_rendering = self.renderer._depth_rendering
         self.renderer.disable_depth_rendering()
         for id in self.config.obs_rgb_cam_id:
             img = self.getRgbImg(id)
             self.img_rgb_obs_s[id] = img
         
+        # 采集深度观测
         self.renderer.enable_depth_rendering()
         for id in self.config.obs_depth_cam_id:
             img = self.getDepthImg(id)
             self.img_depth_obs_s[id] = img
         self.renderer._depth_rendering = depth_rendering
         
+        # 窗口显示
         if not self.config.headless and self.window is not None:
             current_width_s_, current_height_s_ = glfw.get_framebuffer_size(self.window)
             current_width, current_height = int(current_width_s_/self.screen_scale), int(current_height_s_/self.screen_scale)
@@ -409,6 +469,7 @@ class SimulatorBase:
                 glfw.swap_buffers(self.window)
                 glfw.poll_events()
                 
+                # 帧同步，保证渲染帧率
                 if self.config.sync:
                     current_time = time.time()
                     wait_time = max(1.0/self.render_fps - (current_time - self.last_render_time), 0)
@@ -420,6 +481,9 @@ class SimulatorBase:
                 print(f"渲染错误: {e}")
 
     def getRgbImg(self, cam_id):
+        """
+        获取指定相机的RGB图像（支持高斯渲染和Mujoco原生渲染）
+        """
         if self.config.use_gaussian_renderer and self.show_gaussian_img:
             if cam_id == -1:
                 self.renderer.update_scene(self.mj_data, self.free_camera, self.options)
@@ -441,6 +505,9 @@ class SimulatorBase:
             return rgb_img
 
     def getDepthImg(self, cam_id):
+        """
+        获取指定相机的深度图像（支持高斯渲染和Mujoco原生渲染）
+        """
         if self.config.use_gaussian_renderer and self.show_gaussian_img:
             if cam_id == -1:
                 self.renderer.update_scene(self.mj_data, self.free_camera, self.options)
@@ -466,8 +533,7 @@ class SimulatorBase:
             return depth_img
 
     def getPointCloud(self, cam_id, N_gap=5):
-        """ please call after get_observation """
-
+        """请在获取观测后调用，返回点云和颜色"""
         assert (cam_id in self.config.obs_rgb_cam_id) and (cam_id in self.config.obs_depth_cam_id), "Invalid cam_id"
 
         # 相机内参预计算
@@ -504,6 +570,7 @@ class SimulatorBase:
         return points, colors_rgb
 
     def on_mouse_move(self, window, xpos, ypos):
+        # 鼠标移动事件，处理自由视角下的相机旋转/平移/缩放
         if self.cam_id == -1:
             dx = xpos - self.mouse_pos['x']
             dy = ypos - self.mouse_pos['y']
@@ -525,6 +592,7 @@ class SimulatorBase:
         self.mouse_pos['y'] = ypos
 
     def on_mouse_button(self, window, button, action, mods):
+        # 鼠标按键事件
         is_pressed = action == glfw.PRESS
         
         if button == glfw.MOUSE_BUTTON_LEFT:
@@ -535,11 +603,13 @@ class SimulatorBase:
             self.mouse_pressed['middle'] = is_pressed
 
     def on_mouse_scroll(self, window, xoffset, yoffset):
+        # 鼠标滚轮事件，控制相机距离
         self.free_camera.distance -= yoffset * 0.1
         if self.free_camera.distance < 0.1:
             self.free_camera.distance = 0.1
 
     def on_key(self, window, key, scancode, action, mods):
+        # 键盘事件，支持快捷键切换渲染模式、相机等
         if action == glfw.PRESS:
             is_ctrl_pressed = (mods & glfw.MOD_CONTROL)
             
@@ -604,11 +674,13 @@ class SimulatorBase:
         print("==============\n")
 
     def resetState(self):
+        # 重置仿真状态
         mujoco.mj_resetData(self.mj_model, self.mj_data)
         mujoco.mj_forward(self.mj_model, self.mj_data)
         self.camera_pose_changed = True
 
     def update_gs_scene(self):
+        # 更新高斯渲染器场景中所有物体的位姿
         for name in self.config.obj_list + self.config.rb_link_list:
             trans, quat_wxyz = self.getObjPose(name)
             self.gs_renderer.set_obj_pose(name, trans, quat_wxyz)
@@ -620,6 +692,7 @@ class SimulatorBase:
             self.gs_renderer.renderer.gaussians.rot[self.gs_renderer.renderer.gau_env_idx:] = multiple_quaternions(self.gs_renderer.renderer.gau_rot_all_cu[self.gs_renderer.renderer.gau_env_idx:], self.gs_renderer.renderer.gau_ori_rot_all_cu[self.gs_renderer.renderer.gau_env_idx:])
 
     def getObjPose(self, name):
+        # 获取物体或几何体的世界位姿
         try:
             position = self.mj_data.body(name).xpos
             quat = self.mj_data.body(name).xquat
@@ -634,6 +707,7 @@ class SimulatorBase:
                 return None, None
     
     def getCameraPose(self, cam_id):
+        # 获取相机的世界位姿
         if cam_id == -1:
             rotation_matrix = self.camera_rmat @ Rotation.from_euler('xyz', [self.free_camera.elevation * np.pi / 180.0, self.free_camera.azimuth * np.pi / 180.0, 0.0]).as_matrix()
             camera_position = self.free_camera.lookat + self.free_camera.distance * rotation_matrix[:3,2]
@@ -644,7 +718,7 @@ class SimulatorBase:
         return camera_position, Rotation.from_matrix(rotation_matrix).as_quat()[[3,0,1,2]]
 
     def _cleanup_before_exit(self):
-        """在Python退出前执行的清理函数"""
+        """在Python退出前执行的清理函数，释放渲染器和窗口资源"""
         try:
             # 如果GLFW上下文有效，先清理Mujoco渲染器
             if hasattr(self, 'renderer'):
@@ -672,9 +746,10 @@ class SimulatorBase:
         except Exception:
             pass
 
-    # ------------------------------------------------------------------------------
-    # ---------------------------------- Override ----------------------------------
+    # --------------------------------------------------------------------------
+    # -------------------------- 需子类实现的接口  ------------------------------
     def reset(self):
+        # 重置仿真器状态并返回观测
         self.resetState()
         if self.config.enable_render:
             self.render()
@@ -682,37 +757,50 @@ class SimulatorBase:
         return self.getObservation()
 
     def updateControl(self, action):
+        # 控制输入，需子类实现
         pass
 
-    # 包含了一些需要子类实现的抽象方法
     @abstractmethod
     def post_physics_step(self):
+        # 物理步进后处理，需子类实现
+        # 一代子类简易实现
         pass
 
     @abstractmethod
     def getChangedObjectPose(self):
+        # 获取发生变化的物体位姿，需子类实现
         raise NotImplementedError("pubObjectPose is not implemented")
 
     @abstractmethod
     def checkTerminated(self):
+        # 检查仿真是否终止，需子类实现
+        # 一代子类简易实现
         raise NotImplementedError("checkTerminated is not implemented")    
 
     @abstractmethod
     def getObservation(self):
+        # 获取观测，需子类实现
+        # 一代子类实现
         raise NotImplementedError("getObservation is not implemented")
 
     @abstractmethod
     def getPrivilegedObservation(self):
+        # 获取特权观测，需子类实现
+        # 一代子类简易实现
         raise NotImplementedError("getPrivilegedObservation is not implemented")
 
     @abstractmethod
     def getReward(self):
+        # 获取奖励，需子类实现
+        # 
         raise NotImplementedError("getReward is not implemented")
     
-    # ---------------------------------- Override ----------------------------------
-    # ------------------------------------------------------------------------------
-
-    def step(self, action=None): # 主要的仿真步进函数
+    # --------------------------------------------------------------------------
+    # -------------------------- 主要仿真步进函数  ------------------------------
+    def step(self, action=None):
+        """
+        主要的仿真步进函数，执行控制、物理仿真、渲染、终止检测等。
+        """
         for _ in range(self.decimation):
             self.updateControl(action)
             mujoco.mj_step(self.mj_model, self.mj_data)
@@ -728,6 +816,7 @@ class SimulatorBase:
         return self.getObservation(), self.getPrivilegedObservation(), self.getReward(), terminated, {}
 
     def view(self):
+        # 仅用于前端可视化，推进仿真时间并渲染
         self.mj_data.time += self.delta_t
         self.mj_data.qvel[:] = 0
         mujoco.mj_forward(self.mj_model, self.mj_data)
